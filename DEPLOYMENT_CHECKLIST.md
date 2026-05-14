@@ -1,0 +1,95 @@
+# BBM Mobile App Deployment Checklist
+
+## Server-Side Deployment (FTP Upload)
+
+### 1. Upload Mobile API Files
+Upload the entire `mobile_api/` folder to your BBM server:
+```
+BBM/
+├── mobile_api/
+│   ├── auth.php
+│   ├── leads.php
+│   ├── claim.php
+│   ├── stats.php
+│   └── release.php
+```
+
+### 2. Database Schema Update
+Add these columns to your `users` table:
+```sql
+ALTER TABLE users ADD COLUMN api_token VARCHAR(255) NULL;
+ALTER TABLE users ADD COLUMN token_expires DATETIME NULL;
+```
+
+### 3. File Permissions
+Set proper permissions for mobile API files:
+```bash
+chmod 644 mobile_api/*.php
+```
+
+## Flutter App Configuration
+
+### 1. Update Production URL
+In `lib/config/api_config.dart`, change:
+```dart
+static const String baseUrl = "https://your-actual-domain.com";
+```
+
+### 2. Build Flutter App
+```bash
+flutter clean
+flutter pub get
+flutter build apk --release  # For Android
+flutter build ios --release  # For iOS
+```
+
+## Testing Checklist
+
+### Test Mobile API Endpoints
+1. **Auth Test**: `POST /mobile_api/auth.php`
+2. **Leads Test**: `GET /mobile_api/leads.php?token=YOUR_TOKEN`
+3. **Stats Test**: `GET /mobile_api/stats.php?token=YOUR_TOKEN`
+4. **Claim Test**: `POST /mobile_api/claim.php`
+
+### Test Flutter App
+1. Login functionality
+2. Available leads display
+3. Lead claiming
+4. Dashboard statistics
+5. My claims page
+
+## Production Optimizations
+
+### PHP Configuration
+Ensure your server has:
+- PHP 7.4+ with PDO extension
+- Proper error logging
+- CORS headers for mobile requests
+
+### Security
+- Use HTTPS for all API calls
+- Implement rate limiting if needed
+- Monitor API usage logs
+
+## Go-Live Steps
+
+1. Upload mobile API files via FTP
+2. Run database schema update
+3. Update Flutter app base URL
+4. Test all API endpoints
+5. Build Flutter app for production
+6. Deploy to app stores (optional)
+7. Monitor logs for any issues
+
+## 🆘 Troubleshooting
+
+### Common Issues
+- **CORS errors**: Check mobile API CORS headers
+- **Database connection**: Verify BBM database config
+- **Token issues**: Check `api_token` column exists
+- **File permissions**: Ensure PHP files are readable
+
+### Debug Tools
+- Use browser dev tools to test API endpoints
+- Check server error logs
+- Use Flutter debug mode for app testing

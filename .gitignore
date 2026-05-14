@@ -1,0 +1,107 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+Thumbs.db
+Desktop.ini
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+*.tmp
+*.temp
+*.bak
+*.orig
+*.hprof
+hs_err_pid*
+replay_pid*
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+coverage/
+.fvm/flutter_sdk/
+/build/
+**/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android local/generated files and signing material
+**/.gradle/
+**/.cxx/
+**/captures/
+**/local.properties
+**/key.properties
+**/*.jks
+**/*.keystore
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android_old/app/debug
+/android_old/app/profile
+/android_old/app/release
+
+# iOS/macOS generated files
+**/Pods/
+**/.symlinks/
+**/Flutter/ephemeral/
+**/Flutter/Generated.xcconfig
+**/Flutter/flutter_export_environment.sh
+**/DerivedData/
+**/xcuserdata/
+
+# Local environment and service credentials
+.env
+.env.*
+!.env.example
+**/firebase-service-account*.json
+**/google-services.json
+**/GoogleService-Info.plist
+
+# PHP/Composer dependencies and runtime files
+mobile_api/vendor/
+mobile_api/logs/
+mobile_api/cache/
+mobile_api/tmp/
+mobile_api/uploads/
+composer.phar
+
+# Database dumps and local data stores
+*.sql
+*.sql.gz
+*.dump
+*.db
+*.sqlite
+*.sqlite3
+
+# Release artifacts
+*.apk
+*.aab
+*.ipa
+*.dSYM.zip
