@@ -2,6 +2,10 @@
 
 header("Content-Type: application/json");
 require __DIR__ . "/../../app/config/database.php";
+if (!defined('BBM_REGISTER_HELPERS_ONLY')) {
+    define('BBM_REGISTER_HELPERS_ONLY', true);
+}
+require_once __DIR__ . "/../register.php";
 
 define("RAZORPAY_SECRET", "CgGKEpIYqs5xmMyUzaM8pKnc");
 
@@ -92,10 +96,22 @@ try {
         SELECT
             sp.id,
             sp.slug,
+            sp.name,
             sp.duration_days,
-            sp.artist_level
+            sp.artist_level,
+            st.amount,
+            st.currency,
+            u.username,
+            ap.business_name,
+            ap.contact_person_name,
+            ap.whatsapp_number,
+            ap.instagram_handle,
+            ap.category,
+            ap.coupon_code
         FROM subscription_transactions st
         INNER JOIN subscription_plans sp ON sp.id = st.plan_id
+        INNER JOIN users u ON u.id = st.user_id
+        LEFT JOIN artist_profiles ap ON ap.user_id = st.user_id
         WHERE st.razorpay_order_id = ?
           AND st.user_id = ?
         LIMIT 1
@@ -179,6 +195,29 @@ try {
     ")->execute([$artistLevel, $userId]);
 
     $pdo->commit();
+
+    $currency = $plan['currency'] ?: 'INR';
+    $amountPaid = 'N/A';
+    if ($plan['amount'] !== null && $plan['amount'] !== '') {
+        $amountPaid = $currency . ' ' . number_format(((float)$plan['amount']) / 100, 2);
+    }
+
+    send_email_notification([
+        'notification_type' => 'payment_success',
+        'whatsapp' => $plan['whatsapp_number'] ?: $plan['username'],
+        'business_name' => $plan['business_name'] ?: 'N/A',
+        'contact_person' => $plan['contact_person_name'] ?: 'N/A',
+        'instagram' => $plan['instagram_handle'] ?: 'N/A',
+        'category' => $plan['category'] ?: 'N/A',
+        'coupon_code' => $plan['coupon_code'] ?: '',
+        'account_status' => 'Active (Level ' . $artistLevel . ')',
+        'plan_name' => $plan['name'] ?: $plan['slug'],
+        'amount_paid' => $amountPaid,
+        'payment_id' => $paymentId,
+        'order_id' => $orderId
+    ]);
+
+    log_debug($debug, "Payment success email notification triggered");
 
     echo json_encode([
         "success" => true,

@@ -1,4 +1,161 @@
 <?php
+if (!function_exists('send_email_notification')) {
+function send_email_notification($userData) {
+    try {
+        $to = 'rep123hel@gmail.com'; // Admin email
+        $isPaymentSuccess = ($userData['notification_type'] ?? '') === 'payment_success';
+        $subject = $isPaymentSuccess
+            ? 'Payment Successful - BridalBooker Machine'
+            : 'New Artist Registration - BridalBooker Machine';
+
+        $escape = function ($value) {
+            return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+        };
+
+        $whatsapp   = $escape($userData['whatsapp'] ?? 'N/A');
+        $business   = $escape($userData['business_name'] ?? 'N/A');
+        $contact    = $escape($userData['contact_person'] ?? 'N/A');
+        $instagram  = $escape($userData['instagram'] ?? 'N/A');
+        $category   = $escape($userData['category'] ?? 'N/A');
+        $couponRaw  = $userData['coupon_code'] ?? '';
+        $coupon     = $escape($couponRaw !== '' && $couponRaw !== null ? $couponRaw : 'Not Applied');
+        $title      = $isPaymentSuccess ? 'Payment Successful' : 'New Artist Registered';
+        $accountStatus = $escape(
+            $userData['account_status'] ?? ($isPaymentSuccess ? 'Active' : 'Inactive (Level 5)')
+        );
+
+        $paymentDetails = '';
+        if ($isPaymentSuccess) {
+            $planName = $escape($userData['plan_name'] ?? 'N/A');
+            $amountPaid = $escape($userData['amount_paid'] ?? 'N/A');
+            $paymentId = $escape($userData['payment_id'] ?? 'N/A');
+            $orderId = $escape($userData['order_id'] ?? 'N/A');
+
+            $paymentDetails = "
+                    <div class='field'>
+                        <div class='label'>Plan</div>
+                        <div class='value'>{$planName}</div>
+                    </div>
+                    <div class='field'>
+                        <div class='label'>Amount Paid</div>
+                        <div class='value'>{$amountPaid}</div>
+                    </div>
+                    <div class='field'>
+                        <div class='label'>Razorpay Payment ID</div>
+                        <div class='value'>{$paymentId}</div>
+                    </div>
+                    <div class='field'>
+                        <div class='label'>Razorpay Order ID</div>
+                        <div class='value'>{$orderId}</div>
+                    </div>";
+        }
+
+        $message = "
+        <html>
+        <head>
+            <title>{$title}</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                }
+                .container {
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }
+                .header {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 20px;
+                    text-align: center;
+                    border-radius: 10px 10px 0 0;
+                }
+                .content {
+                    background: #f9f9f9;
+                    padding: 20px;
+                    border-radius: 0 0 10px 10px;
+                }
+                .field {
+                    margin-bottom: 12px;
+                }
+                .label {
+                    font-weight: bold;
+                    color: #555;
+                }
+                .value {
+                    background: #ffffff;
+                    padding: 8px;
+                    border-radius: 5px;
+                    margin-top: 4px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h2>{$title}</h2>
+                    <p>BridalBooker Machine</p>
+                </div>
+                <div class='content'>
+                    <div class='field'>
+                        <div class='label'>Business Name</div>
+                        <div class='value'>{$business}</div>
+                    </div>
+                    <div class='field'>
+                        <div class='label'>Contact Person</div>
+                        <div class='value'>{$contact}</div>
+                    </div>
+                    <div class='field'>
+                        <div class='label'>WhatsApp Number</div>
+                        <div class='value'>+91 {$whatsapp}</div>
+                    </div>
+                    <div class='field'>
+                        <div class='label'>Instagram Handle</div>
+                        <div class='value'>{$instagram}</div>
+                    </div>
+                    <div class='field'>
+                        <div class='label'>Category</div>
+                        <div class='value'>{$category}</div>
+                    </div>
+                    <div class='field'>
+                        <div class='label'>Coupon Code</div>
+                        <div class='value'>{$coupon}</div>
+                    </div>
+                    <div class='field'>
+                        <div class='label'>Account Status</div>
+                        <div class='value'>{$accountStatus}</div>
+                    </div>
+                    {$paymentDetails}
+                </div>
+            </div>
+        </body>
+        </html>
+        ";
+
+        $headers  = "MIME-Version: 1.0\r\n";
+        $headers .= "Content-type:text/html;charset=UTF-8\r\n";
+        $headers .= "From: BridalBooker Machine <noreply@bridalbookermachine.com>\r\n";
+        $headers .= "Reply-To: noreply@bridalbookermachine.com\r\n";
+
+        $mail_sent = mail($to, $subject, $message, $headers);
+
+        if ($mail_sent) {
+            error_log("Email notification sent successfully for WhatsApp: " . $whatsapp);
+        } else {
+            error_log("Failed to send email notification for WhatsApp: " . $whatsapp);
+        }
+    } catch (Exception $e) {
+        error_log("Email Error: " . $e->getMessage());
+    }
+}
+}
+
+if (defined('BBM_REGISTER_HELPERS_ONLY')) {
+    return;
+}
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -48,118 +205,6 @@ if (strlen($password) < 8 || strlen($password) > 50) {
 if (empty($business))  $errors['business_name'] = "Business name is required.";
 if (empty($contact))   $errors['contact_person'] = "Contact person name is required.";
 if (empty($instagram)) $errors['instagram'] = "Instagram handle is required.";
-
-function send_email_notification($userData) {
-    try {
-        $to = 'rep123hel@gmail.com'; // Admin email
-        $subject = 'New Artist Registration - BridalBooker Machine';
-
-        $whatsapp   = $userData['whatsapp'] ?? 'N/A';
-        $business   = $userData['business_name'] ?? 'N/A';
-        $contact    = $userData['contact_person'] ?? 'N/A';
-        $instagram  = $userData['instagram'] ?? 'N/A';
-        $category   = $userData['category'] ?? 'N/A';
-        $coupon     = $userData['coupon_code'] ?? 'Not Applied';
-
-        $message = "
-        <html>
-        <head>
-            <title>New Artist Registration</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    line-height: 1.6;
-                    color: #333;
-                }
-                .container {
-                    max-width: 600px;
-                    margin: 0 auto;
-                    padding: 20px;
-                }
-                .header {
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    padding: 20px;
-                    text-align: center;
-                    border-radius: 10px 10px 0 0;
-                }
-                .content {
-                    background: #f9f9f9;
-                    padding: 20px;
-                    border-radius: 0 0 10px 10px;
-                }
-                .field {
-                    margin-bottom: 12px;
-                }
-                .label {
-                    font-weight: bold;
-                    color: #555;
-                }
-                .value {
-                    background: #ffffff;
-                    padding: 8px;
-                    border-radius: 5px;
-                    margin-top: 4px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <div class='header'>
-                    <h2>New Artist Registered</h2>
-                    <p>BridalBooker Machine</p>
-                </div>
-                <div class='content'>
-                    <div class='field'>
-                        <div class='label'>Business Name</div>
-                        <div class='value'>{$business}</div>
-                    </div>
-                    <div class='field'>
-                        <div class='label'>Contact Person</div>
-                        <div class='value'>{$contact}</div>
-                    </div>
-                    <div class='field'>
-                        <div class='label'>WhatsApp Number</div>
-                        <div class='value'>+91 {$whatsapp}</div>
-                    </div>
-                    <div class='field'>
-                        <div class='label'>Instagram Handle</div>
-                        <div class='value'>{$instagram}</div>
-                    </div>
-                    <div class='field'>
-                        <div class='label'>Category</div>
-                        <div class='value'>{$category}</div>
-                    </div>
-                    <div class='field'>
-                        <div class='label'>Coupon Code</div>
-                        <div class='value'>{$coupon}</div>
-                    </div>
-                    <div class='field'>
-                        <div class='label'>Account Status</div>
-                        <div class='value'>Inactive (Level 5)</div>
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-        ";
-
-        $headers  = "MIME-Version: 1.0\r\n";
-        $headers .= "Content-type:text/html;charset=UTF-8\r\n";
-        $headers .= "From: BridalBooker Machine <noreply@bridalbookermachine.com>\r\n";
-        $headers .= "Reply-To: noreply@bridalbookermachine.com\r\n";
-
-        $mail_sent = mail($to, $subject, $message, $headers);
-
-        if ($mail_sent) {
-            error_log("Artist registration email sent successfully for WhatsApp: " . $whatsapp);
-        } else {
-            error_log("Failed to send artist registration email for WhatsApp: " . $whatsapp);
-        }
-    } catch (Exception $e) {
-        error_log("Email Error: " . $e->getMessage());
-    }
-}
 
 try {
     $config_file = __DIR__ . '/../app/config/database.php';
