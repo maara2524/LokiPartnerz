@@ -1244,43 +1244,43 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
   }
 }
 
-String _buildWistiaHtml(String id) {
-  return '''
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
-<style>
-html, body {
-  margin: 0;
-  background: transparent;
-}
-.wistia_embed {
-  width: 100%;
-  height: 100%;
-}
-</style>
-</head>
-<body>
+// String _buildWistiaHtml(String id) {
+//   return '''
+// <!DOCTYPE html>
+// <html>
+// <head>
+// <meta name="viewport" content="width=device-width, initial-scale=1.0">
+// <script src="https://fast.wistia.com/assets/external/E-v1.js" async></script>
+// <style>
+// html, body {
+//   margin: 0;
+//   background: transparent;
+// }
+// .wistia_embed {
+//   width: 100%;
+//   height: 100%;
+// }
+// </style>
+// </head>
+// <body>
 
-<div class="wistia_embed wistia_async_$id
-  controlsVisibleOnLoad=true
-  fullscreenButton=true
-  videoFoam=true">
-</div>
+// <div class="wistia_embed wistia_async_$id
+//   controlsVisibleOnLoad=true
+//   fullscreenButton=true
+//   videoFoam=true">
+// </div>
 
-<script>
-window._wq = window._wq || [];
-_wq.push({
-  id: "$id",
-  onReady: function(video) {
-    video.pause();
-  }
-});
-</script>
+// <script>
+// window._wq = window._wq || [];
+// _wq.push({
+//   id: "$id",
+//   onReady: function(video) {
+//     video.pause();
+//   }
+// });
+// </script>
 
-</body>
-</html>
-''';
-}
+// </body>
+// </html>
+// ''';
+// }
