@@ -105,6 +105,8 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
         body: jsonEncode({"token": token}),
       );
 
+      debugPrint("Debug : Video Response Status => $response");
+
       final data = jsonDecode(response.body);
       final wistiaId = data["video"]["wistia_id"];
 
@@ -504,7 +506,11 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0x00000000))
-      ..loadHtmlString(_buildWistiaHtml(_wistiaId!));
+      ..loadRequest(
+        Uri.parse(
+          'https://fast.wistia.net/embed/iframe/$_wistiaId?videoFoam=true',
+        ),
+      );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
@@ -542,33 +548,25 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
           child: AspectRatio(
             aspectRatio: 16 / 9,
 
-            child: Stack(
-              children: [
-                _inlineWistiaPlayer(),
-
-                // Play overlay ONLY before tap
-                if (!_playVideoInline)
-                  Positioned.fill(
-                    child: Material(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      child: InkWell(
-                        onTap: () {
-                          setState(() {
-                            _playVideoInline = true;
-                          });
-                        },
-                        child: const Center(
-                          child: Icon(
-                            Icons.play_circle_fill,
-                            color: Colors.white,
-                            size: 70,
-                          ),
+            child: !_playVideoInline
+                ? Material(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _playVideoInline = true;
+                        });
+                      },
+                      child: const Center(
+                        child: Icon(
+                          Icons.play_circle_fill,
+                          color: Colors.white,
+                          size: 70,
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                  )
+                : _inlineWistiaPlayer(),
           ),
         ),
       ],
