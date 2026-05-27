@@ -51,7 +51,7 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
   bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   static const String _subscriptionWebsiteUrl =
-      "https://bbm.lokiwebvibe.com/bbm/";
+      "https://lpz.lokiwebvibe.com/";
 
   List<String> getPlanPoints(String planKey) {
     List<String> points = [];
