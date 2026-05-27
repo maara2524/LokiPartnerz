@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'config/api_config.dart';
 
@@ -37,6 +38,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool isLoading = true;
   bool isIncomplete = false;
   bool _isLoggingOut = false;
+  bool _isDeletingAccount = false;
 
   bool _isValidUsername(String v) => v.length >= 4;
   bool _isValidWhatsapp(String v) => RegExp(r'^[0-9]{10}$').hasMatch(v);
@@ -116,12 +118,6 @@ class _SettingsPageState extends State<SettingsPage> {
         if (data['success'] == true && data['profile'] != null) {
           _setProfileData(data['profile']);
           await prefs.setString('artist_profile', jsonEncode(data['profile']));
-
-          if (status == 'inactive' && mounted) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              Navigator.pushReplacementNamed(context, '/Subscription');
-            });
-          }
         }
       }
     } catch (_) {}
@@ -163,6 +159,133 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
 
     Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+  }
+
+  Future<void> _deleteAccount() async {
+    if (_isDeletingAccount) return;
+
+    setState(() => _isDeletingAccount = true);
+
+    try {
+      final res = await http.post(
+        Uri.parse(ApiConfig.deleteAccountEndpoint),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+        body: jsonEncode({'api_token': authToken}),
+      );
+
+      Map<String, dynamic>? data;
+      try {
+        final decoded = jsonDecode(res.body);
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        }
+      } catch (_) {}
+
+      if (res.statusCode == 200 && data?['success'] == true) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.clear();
+
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+        return;
+      }
+
+      final message =
+          data?['message']?.toString() ??
+          data?['error']?.toString() ??
+          'Unable to delete account. Please try again.';
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to delete account. Please try again.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isDeletingAccount = false);
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            "Delete Account",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            "This permanently deletes your account, profile, subscription records, saved device token, and lead activity linked to your account. This cannot be undone.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: _isDeletingAccount
+                  ? null
+                  : () => Navigator.pop(context, true),
+              child: const Text(
+                "Delete",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete == true) {
+      await _deleteAccount();
+    }
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    final uri = Uri.parse(ApiConfig.privacyPolicyUrl);
+
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to open privacy policy.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to open privacy policy.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _showProfileDialog({bool editAll = false}) {
@@ -699,6 +822,30 @@ class _SettingsPageState extends State<SettingsPage> {
                             onTap: () => _showProfileDialog(editAll: false),
                           ),
                         ],
+                        _divider(),
+                        _settingsTile(
+                          icon: Icons.delete_outline,
+                          label: _isDeletingAccount
+                              ? "Deleting Account..."
+                              : "Delete Account",
+                          isDestructive: true,
+                          onTap: _isDeletingAccount
+                              ? () {}
+                              : () => _confirmDeleteAccount(context),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    _settingsSection(
+                      title: "Legal",
+                      children: [
+                        _settingsTile(
+                          icon: Icons.privacy_tip_outlined,
+                          label: "Privacy Policy",
+                          onTap: _openPrivacyPolicy,
+                        ),
                       ],
                     ),
 

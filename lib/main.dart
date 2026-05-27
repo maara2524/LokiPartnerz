@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -72,14 +73,24 @@ Future<void> _postAppStartupInit() async {
   await _checkInitialMessage();
 }
 
-// Local notifications setup (unchanged, guarded)
+// Local notifications setup
 Future<void> _initializeLocalNotifications() async {
   try {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
+    const DarwinInitializationSettings initializationSettingsDarwin =
+        DarwinInitializationSettings(
+          requestAlertPermission: false,
+          requestBadgePermission: false,
+          requestSoundPermission: false,
+        );
+
     const InitializationSettings initializationSettings =
-        InitializationSettings(android: initializationSettingsAndroid);
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsDarwin,
+        );
 
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
@@ -134,9 +145,20 @@ Future<void> _initializeFCM() async {
       return;
     }
 
-    if (settings.authorizationStatus != AuthorizationStatus.authorized) {
+    if (settings.authorizationStatus != AuthorizationStatus.authorized &&
+        settings.authorizationStatus != AuthorizationStatus.provisional) {
       debugPrint('Debug : Notification permission not granted.');
       return;
+    }
+
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS)) {
+      await messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
     }
 
     // Delay token fetch (your original logic preserved)
@@ -171,7 +193,9 @@ Future<void> _initializeFCM() async {
         debugPrint(
           "Debug : Foreground message: ${message.notification?.title}",
         );
-        _showLocalNotification(message);
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          _showLocalNotification(message);
+        }
       } catch (e) {
         debugPrint('Debug : Foreground handler error: $e');
       }
@@ -190,7 +214,8 @@ Future<void> _initializeFCM() async {
   }
 }
 
-// Show local notification (unchanged)
+// Android foreground notifications are shown manually. iOS foreground display
+// is handled by Firebase presentation options.
 void _showLocalNotification(RemoteMessage message) {
   RemoteNotification? notification = message.notification;
   AndroidNotification? android = message.notification?.android;

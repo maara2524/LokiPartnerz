@@ -129,7 +129,5 @@ dependencies {
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("androidx.core:core-ktx:1.13.1")
-    implementation("com.facebook.android:facebook-android-sdk:[8,9)")
-
     debugImplementation("androidx.profileinstaller:profileinstaller:1.3.1")
 }

@@ -1,4 +1,5 @@
 import 'package:bbm_app/main_shell.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -20,6 +21,19 @@ class _SplashPageState extends State<SplashPage> {
   bool _navigated = false;
   static const String _sessionExpiredMarker = '__session_expired__';
 
+  String get _versionPlatform {
+    if (kIsWeb) return 'web';
+
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android => 'android',
+      TargetPlatform.iOS => 'ios',
+      TargetPlatform.macOS => 'macos',
+      TargetPlatform.windows => 'windows',
+      TargetPlatform.linux => 'linux',
+      TargetPlatform.fuchsia => 'fuchsia',
+    };
+  }
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +46,7 @@ class _SplashPageState extends State<SplashPage> {
 
     if (!canContinue) return;
 
-    await _checkForUpdate(); // optional Play Store update
+    await _checkForUpdate(); // optional Android Play Store update
 
     await _startSplashFlow();
   }
@@ -42,11 +56,12 @@ class _SplashPageState extends State<SplashPage> {
       final packageInfo = await PackageInfo.fromPlatform();
 
       final currentVersion = packageInfo.version;
+      final platform = _versionPlatform;
 
       final response = await http
           .get(
-            Uri.parse(
-              "${ApiConfig.versionCheckEndpoint}?version=$currentVersion&platform=android",
+            Uri.parse(ApiConfig.versionCheckEndpoint).replace(
+              queryParameters: {'version': currentVersion, 'platform': platform},
             ),
           )
           .timeout(const Duration(seconds: 6));
@@ -63,7 +78,10 @@ class _SplashPageState extends State<SplashPage> {
           MaterialPageRoute(
             builder: (_) => UpdateRequiredScreen(
               message: data['message'],
-              playstoreUrl: data['playstore_url'],
+              storeUrl: data['store_url'] ?? data['playstore_url'] ?? '',
+              storeLabel: platform == 'ios'
+                  ? 'Update from App Store'
+                  : 'Update from Play Store',
             ),
           ),
         );
@@ -92,6 +110,10 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> _checkForUpdate() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return;
+    }
+
     try {
       AppUpdateInfo info = await InAppUpdate.checkForUpdate().timeout(
         const Duration(seconds: 5),

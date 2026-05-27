@@ -3,6 +3,7 @@
 class ApiConfig {
 
   static const String baseUrl = "https://bbm.lokiwebvibe.com"; 
+  static const String privacyPolicyUrl = "$baseUrl/privacy.html";
 
   static const String loginEndpoint = "$baseUrl/mobile_api/auth.php";
   static const String uiConfigEndpoint = "$baseUrl/mobile_api/get_ui_config.php";
@@ -13,6 +14,7 @@ class ApiConfig {
   static const String tutorialVideosEndpoint = "$baseUrl/mobile_api/tutorial_videos.php";
   static const String subscriptionIntroVideoEndpoint = "$baseUrl/mobile_api/subscription-intro-video.php";
   static const String registerEndpoint = "$baseUrl/mobile_api/register.php";
+  static const String deleteAccountEndpoint = "$baseUrl/mobile_api/delete_account.php";
   static const String availableLeadsEndpoint = "$baseUrl/mobile_api/all_leads.php";
   static const String claimStatsEndpoint = "$baseUrl/mobile_api/stats.php";
   static const String claimLeadEndpoint = "$baseUrl/mobile_api/claim_leads.php";

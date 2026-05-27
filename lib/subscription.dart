@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,7 +20,7 @@ class Level5SubscriptionPage extends StatefulWidget {
 }
 
 class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
-  late Razorpay _razorpay;
+  Razorpay? _razorpay;
 
   String? _razorpayOrderId;
   int? selectedPlanId;
@@ -43,6 +44,14 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
 
   Map<String, dynamic> uiConfig = {};
   bool uiLoaded = false;
+
+  bool get _canUseRazorpayCheckout =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  static const String _subscriptionWebsiteUrl =
+      "https://bbm.lokiwebvibe.com/bbm/";
 
   List<String> getPlanPoints(String planKey) {
     List<String> points = [];
@@ -162,19 +171,27 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
     fetchUIConfig();
     // _fireRegistrationEventIfNeeded();
 
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    if (_canUseRazorpayCheckout) {
+      _razorpay = Razorpay();
+      _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+      _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+      _razorpay!.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    }
   }
 
   @override
   void dispose() {
-    _razorpay.clear();
+    _paymentTimeout?.cancel();
+    _razorpay?.clear();
     super.dispose();
   }
 
   Future<void> createRazorpayOrder(Map<String, dynamic> plan) async {
+    if (!_canUseRazorpayCheckout) {
+      await _openSubscriptionWebsite();
+      return;
+    }
+
     if (_isPaying) return;
     _isPaying = true;
 
@@ -205,6 +222,10 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
   }
 
   void openRazorpayCheckout() {
+    if (!_canUseRazorpayCheckout || _razorpay == null) {
+      return;
+    }
+
     var options = {
       'key': 'rzp_live_S2XFFjRvkMZHEM',
       'order_id': _razorpayOrderId,
@@ -222,7 +243,14 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
       );
     });
 
-    _razorpay.open(options);
+    _razorpay!.open(options);
+  }
+
+  Future<void> _openSubscriptionWebsite() async {
+    await launchUrl(
+      Uri.parse(_subscriptionWebsiteUrl),
+      mode: LaunchMode.externalApplication,
+    );
   }
 
   void _showErrorDialog(String message) {
@@ -1131,77 +1159,74 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
 
                     const SizedBox(height: 14),
 
-                    _commonActionCard(
-                      icon: Icons.language,
-                      title: "Visit Website for More Info",
-                      subtitle: "Plans, FAQs, case studies & support",
-                      outlined: true,
-                      onTap: () async {
-                        const websiteUrl = "https://bbm.lokiwebvibe.com/bbm/";
-                        await launchUrl(
-                          Uri.parse(websiteUrl),
-                          mode: LaunchMode.externalApplication,
-                        );
-                      },
-                    ),
+                    if (_isIOS)
+                      _commonActionCard(
+                        icon: Icons.language,
+                        title: "Visit Website",
+                        subtitle: "Open Loki Partnerz in your browser",
+                        outlined: true,
+                        onTap: _openSubscriptionWebsite,
+                      ),
 
                     const SizedBox(height: 14),
-                    _buildPlanCard(
-                      title: uiConfig["trial_title"] ?? "",
-                      priceWidget: priceWithOffer("trial"),
-                      duration: uiConfig["trial_duration"] ?? "",
-                      points: getPlanPoints("trial"),
-                      buttonText: "Start Trial Plan",
-                      onTap: () {
-                        if (trialPlan == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Loading plans, please wait..."),
-                            ),
-                          );
-                          return;
-                        }
-                        createRazorpayOrder(trialPlan!);
-                      },
-                    ),
-                    _buildPlanCard(
-                      title: uiConfig["basic_title"] ?? "",
-                      priceWidget: priceWithOffer("basic"),
-                      duration: uiConfig["basic_duration"] ?? "",
-                      points: getPlanPoints("basic"),
-                      buttonText: "Start Basic Plan",
-                      onTap: () {
-                        if (basicPlan == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Loading plans, please wait..."),
-                            ),
-                          );
-                          return;
-                        }
-                        createRazorpayOrder(basicPlan!);
-                      },
-                    ),
-                    _buildPlanCard(
-                      title: uiConfig["extended_title"] ?? "",
-                      priceWidget: priceWithOffer("extended"),
-                      duration:
-                          "${uiConfig["extended_duration"]}\n${uiConfig["extended_save_text"]}",
-                      points: getPlanPoints("extended"),
-                      buttonText: "Choose Extended Plan",
-                      popular: true,
-                      onTap: () {
-                        if (extendedPlan == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Loading plans, please wait..."),
-                            ),
-                          );
-                          return;
-                        }
-                        createRazorpayOrder(extendedPlan!);
-                      },
-                    ),
+                    if (!_isIOS) ...[
+                      _buildPlanCard(
+                        title: uiConfig["trial_title"] ?? "",
+                        priceWidget: priceWithOffer("trial"),
+                        duration: uiConfig["trial_duration"] ?? "",
+                        points: getPlanPoints("trial"),
+                        buttonText: "Start Trial Plan",
+                        onTap: () {
+                          if (trialPlan == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Loading plans, please wait..."),
+                              ),
+                            );
+                            return;
+                          }
+                          createRazorpayOrder(trialPlan!);
+                        },
+                      ),
+                      _buildPlanCard(
+                        title: uiConfig["basic_title"] ?? "",
+                        priceWidget: priceWithOffer("basic"),
+                        duration: uiConfig["basic_duration"] ?? "",
+                        points: getPlanPoints("basic"),
+                        buttonText: "Start Basic Plan",
+                        onTap: () {
+                          if (basicPlan == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Loading plans, please wait..."),
+                              ),
+                            );
+                            return;
+                          }
+                          createRazorpayOrder(basicPlan!);
+                        },
+                      ),
+                      _buildPlanCard(
+                        title: uiConfig["extended_title"] ?? "",
+                        priceWidget: priceWithOffer("extended"),
+                        duration:
+                            "${uiConfig["extended_duration"]}\n${uiConfig["extended_save_text"]}",
+                        points: getPlanPoints("extended"),
+                        buttonText: "Choose Extended Plan",
+                        popular: true,
+                        onTap: () {
+                          if (extendedPlan == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Loading plans, please wait..."),
+                              ),
+                            );
+                            return;
+                          }
+                          createRazorpayOrder(extendedPlan!);
+                        },
+                      ),
+                    ],
                     // _buildPlanCard(
                     //   title: "Elite Plan",
                     //   price: "",

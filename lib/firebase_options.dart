@@ -64,7 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '103543831309',
     projectId: 'lead-management-app-74c44',
     storageBucket: 'lead-management-app-74c44.firebasestorage.app',
-    iosBundleId: 'com.example.bbmApp',
+    iosBundleId: 'com.lwv.bridalbookermachine',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '103543831309',
     projectId: 'lead-management-app-74c44',
     storageBucket: 'lead-management-app-74c44.firebasestorage.app',
-    iosBundleId: 'com.example.bbmApp',
+    iosBundleId: 'com.lwv.bridalbookermachine',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

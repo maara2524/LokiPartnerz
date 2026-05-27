@@ -3,16 +3,20 @@ import 'package:url_launcher/url_launcher_string.dart';
 
 class UpdateRequiredScreen extends StatelessWidget {
   final String message;
-  final String playstoreUrl;
+  final String storeUrl;
+  final String storeLabel;
 
   const UpdateRequiredScreen({
     super.key,
     required this.message,
-    required this.playstoreUrl,
+    required this.storeUrl,
+    this.storeLabel = "Update App",
   });
 
   @override
   Widget build(BuildContext context) {
+    final hasStoreUrl = storeUrl.trim().isNotEmpty;
+
     return Scaffold(
       body: Center(
         child: Padding(
@@ -42,13 +46,15 @@ class UpdateRequiredScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    launchUrlString(
-                      playstoreUrl,
-                      mode: LaunchMode.externalApplication,
-                    );
-                  },
-                  child: const Text("Update from Play Store"),
+                  onPressed: hasStoreUrl
+                      ? () {
+                          launchUrlString(
+                            storeUrl,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        }
+                      : null,
+                  child: Text(storeLabel),
                 ),
               ),
             ],

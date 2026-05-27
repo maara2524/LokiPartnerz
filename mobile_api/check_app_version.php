@@ -50,6 +50,7 @@ try {
         "force_update" => $forceUpdate,
         "update_required" => (bool)$config['update_required'],
         "message" => $config['update_message'],
+        "store_url" => $config['playstore_url'],
         "playstore_url" => $config['playstore_url']
     ]);
 
