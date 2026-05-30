@@ -33,6 +33,8 @@ class _DashboardPageState extends State<DashboardPage>
   int bookedLeads = 0;
 
   bool _notificationsEnabled = true;
+  Map<String, dynamic> uiConfig = {};
+  bool uiLoaded = false;
 
   List<Map<String, dynamic>> recentLeads = [];
   List<Map<String, dynamic>> totalLeadsData = [];
@@ -51,6 +53,7 @@ class _DashboardPageState extends State<DashboardPage>
   @override
   void initState() {
     super.initState();
+    fetchUIConfig();
     _initConnectivity();
     _checkNotificationPermission();
     WidgetsBinding.instance.addObserver(this);
@@ -61,6 +64,37 @@ class _DashboardPageState extends State<DashboardPage>
         _checkConnectivityAndLoadData();
       }
     });
+  }
+
+  Future<void> fetchUIConfig() async {
+    try {
+      debugPrint("Debug : FETCH UI CONFIG CALLED");
+
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("auth_token");
+
+      debugPrint("Debug : TOKEN => $token");
+
+      final url =
+          "${ApiConfig.uiConfigEndpoint}?screen=subscription&token=$token";
+
+      debugPrint("Debug : URL => $url");
+
+      final res = await http.get(Uri.parse(url));
+
+      debugPrint("Debug : STATUS => ${res.statusCode}");
+
+      final data = jsonDecode(res.body);
+
+      if (data["success"] == true) {
+        setState(() {
+          uiConfig = data["config"];
+          uiLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint("Debug : UI CONFIG ERROR: $e");
+    }
   }
 
   Future<void> _initConnectivity() async {
@@ -390,16 +424,22 @@ class _DashboardPageState extends State<DashboardPage>
                           ),
                           const SizedBox(width: 10),
 
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              "Enable notifications to receive new lead alerts and important updates.",
-                              style: TextStyle(fontWeight: FontWeight.w500),
+                              uiConfig["notification_banner_text"] ??
+                                  "Enable notifications to receive new lead alerts and important updates.",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
 
                           TextButton(
                             onPressed: _openNotificationSettings,
-                            child: const Text("Enable"),
+                            child: Text(
+                              uiConfig["notification_button_text"] ?? "Enable",
+                            ),
                           ),
                         ],
                       ),

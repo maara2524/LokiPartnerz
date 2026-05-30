@@ -87,7 +87,7 @@ class _MainShellState extends State<MainShell> {
 
     switch (_currentIndex) {
       case 0:
-        return "LP Dashboard";
+        return "LPZ Dashboard";
       case 1:
         return "Available Leads ($availableCount)";
       case 2:

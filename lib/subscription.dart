@@ -1148,16 +1148,23 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
                             ),
                             const SizedBox(width: 10),
 
-                            const Expanded(
+                            Expanded(
                               child: Text(
-                                "Enable notifications to receive new lead alerts and important updates.",
-                                style: TextStyle(fontWeight: FontWeight.w500),
+                                uiConfig["notification_banner_text"] ??
+                                    "Enable notifications to receive new lead alerts and important updates.",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
 
                             TextButton(
                               onPressed: _openNotificationSettings,
-                              child: const Text("Enable"),
+                              child: Text(
+                                uiConfig["notification_button_text"] ??
+                                    "Enable",
+                              ),
                             ),
                           ],
                         ),
