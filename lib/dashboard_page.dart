@@ -8,6 +8,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'config/api_config.dart';
 import 'main.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class DashboardPage extends StatefulWidget {
   final Function(int)? onNavigate;
@@ -20,7 +21,8 @@ class DashboardPage extends StatefulWidget {
 
 enum DashboardErrorType { none, network, sessionExpired, unknown }
 
-class _DashboardPageState extends State<DashboardPage> with RouteAware {
+class _DashboardPageState extends State<DashboardPage>
+    with RouteAware, WidgetsBindingObserver {
   String username = "";
   String businessName = "";
   int userId = 0;
@@ -29,6 +31,8 @@ class _DashboardPageState extends State<DashboardPage> with RouteAware {
   int newLeads = 0;
   int contactedLeads = 0;
   int bookedLeads = 0;
+
+  bool _notificationsEnabled = true;
 
   List<Map<String, dynamic>> recentLeads = [];
   List<Map<String, dynamic>> totalLeadsData = [];
@@ -48,6 +52,8 @@ class _DashboardPageState extends State<DashboardPage> with RouteAware {
   void initState() {
     super.initState();
     _initConnectivity();
+    _checkNotificationPermission();
+    WidgetsBinding.instance.addObserver(this);
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
       ConnectivityResult result,
     ) {
@@ -70,6 +76,20 @@ class _DashboardPageState extends State<DashboardPage> with RouteAware {
     }
   }
 
+  Future<void> _checkNotificationPermission() async {
+    final status = await Permission.notification.status;
+
+    if (!mounted) return;
+
+    setState(() {
+      _notificationsEnabled = status.isGranted;
+    });
+  }
+
+  Future<void> _openNotificationSettings() async {
+    await openAppSettings();
+  }
+
   Future<void> _checkConnectivityAndLoadData() async {
     final connectivityResult = await Connectivity().checkConnectivity();
     if (!mounted) return;
@@ -90,7 +110,15 @@ class _DashboardPageState extends State<DashboardPage> with RouteAware {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkNotificationPermission();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription.cancel();
     routeObserver.unsubscribe(this);
     super.dispose();
@@ -345,6 +373,37 @@ class _DashboardPageState extends State<DashboardPage> with RouteAware {
                     style: const TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                   const SizedBox(height: 20),
+                  if (!_notificationsEnabled)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.notifications_off,
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(width: 10),
+
+                          const Expanded(
+                            child: Text(
+                              "Enable notifications to receive new lead alerts and important updates.",
+                              style: TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                          ),
+
+                          TextButton(
+                            onPressed: _openNotificationSettings,
+                            child: const Text("Enable"),
+                          ),
+                        ],
+                      ),
+                    ),
 
                   // ---------- STATS ----------
                   Row(
