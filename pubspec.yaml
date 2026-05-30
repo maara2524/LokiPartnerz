@@ -1,7 +1,7 @@
 name: bbm_app
 description: "Bridal Booker Machine."
 publish_to: 'none'
-version: 3.2.10+38
+version: 3.2.11+39
 
 environment:
   sdk: ^3.8.1

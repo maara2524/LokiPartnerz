@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'config/api_config.dart';
 import 'utils/network_utils.dart';
 
@@ -18,7 +19,6 @@ class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
 
   // Controllers
-  final _passwordController = TextEditingController();
   final _businessController = TextEditingController();
   final _contactController = TextEditingController();
   final _instagramController = TextEditingController();
@@ -27,27 +27,21 @@ class _RegisterPageState extends State<RegisterPage> {
 
   // Category
   String? _selectedCategory;
-  final List<String> _categories = [
-    'Makeup',
-    'Photography',
-    'Events (Dance, Catering etc.)',
-    'Others',
-  ];
+  List<String> serviceCategories = [];
 
   // Error messages
   String? whatsappError;
-  String? passwordError;
   String? businessError;
   String? contactError;
   String? instagramError;
   String errorMessage = "";
 
-  bool _obscurePassword = true;
   bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
+    loadServiceCategories();
 
     // Dynamic WhatsApp validation
     _whatsappController.addListener(() {
@@ -65,19 +59,17 @@ class _RegisterPageState extends State<RegisterPage> {
       });
     });
 
-    // Dynamic Password validation
-    _passwordController.addListener(() {
-      final text = _passwordController.text.trim();
-      final passwordRegex = RegExp(r'^(?=.*[0-9])(?=.*[\W_]).{8,50}$');
-
+    // Dynamic Instagram URL validation
+    _instagramController.addListener(() {
+      final text = _instagramController.text.trim();
       setState(() {
         if (text.isEmpty) {
-          passwordError = "Enter password";
-        } else if (!passwordRegex.hasMatch(text)) {
-          passwordError =
-              "Password must be 8–50 chars, include number & special char";
+          instagramError = null;
+        } else if (!text.startsWith('https://www.instagram.com/')) {
+          instagramError =
+              "Enter a valid Instagram profile URL \n(https://www.instagram.com/yourname)";
         } else {
-          passwordError = null;
+          instagramError = null;
         }
       });
     });
@@ -85,7 +77,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
-    _passwordController.dispose();
     _businessController.dispose();
     _contactController.dispose();
     _instagramController.dispose();
@@ -100,6 +91,9 @@ class _RegisterPageState extends State<RegisterPage> {
       prefixIcon: Icon(icon, color: Colors.pinkAccent),
       filled: true,
       fillColor: Colors.white,
+
+      errorMaxLines: 3,
+
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20),
         borderSide: BorderSide.none,
@@ -111,29 +105,35 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  Future<void> loadServiceCategories() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/mobile_api/get-service-categories.php'),
+      );
+
+      debugPrint(response.body.toString());
+
+      final data = jsonDecode(response.body);
+
+      if (data['success']) {
+        setState(() {
+          serviceCategories = List<String>.from(data['categories']);
+        });
+      }
+    } catch (e) {
+      debugPrint(e.toString());
+    }
+  }
+
   Future<void> _registerUser() async {
     if (_formKey.currentState!.validate()) {
       final whatsapp = _whatsappController.text.trim();
-      final password = _passwordController.text.trim();
+      final password = whatsapp; // Password is set to WhatsApp number initially
       final business = _businessController.text.trim();
       final contact = _contactController.text.trim();
       final instagram = _instagramController.text.trim();
       final category = _selectedCategory ?? "";
       final coupon = _couponController.text.trim();
-
-      // Password validation (frontend)
-      final passwordRegex = RegExp(r'^(?=.*[0-9])(?=.*[\W_]).{8,50}$');
-      if (!passwordRegex.hasMatch(password)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Password must be 8–50 characters, include a number and a special character.",
-            ),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-        return;
-      }
 
       setState(() {
         isLoading = true;
@@ -198,7 +198,67 @@ class _RegisterPageState extends State<RegisterPage> {
             facebookAppEvents.logEvent(name: 'CompleteRegistration');
             debugPrint("Debug : META DEBUG: CompleteRegistration fired");
             if (mounted) {
-              Navigator.pushReplacementNamed(context, "/Subscription");
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (dialogContext) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: const Text("Registration Successful"),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Here are your login credentials. Please write them down or take a screenshot:",
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 15),
+                      Text(
+                        "Login ID: ${data!['user']['username']}",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.pink,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        "Password: $whatsapp",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.pink,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      const Text(
+                        "Use these credentials whenever you log in.",
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop();
+                        Navigator.pushReplacementNamed(
+                          context,
+                          "/Subscription",
+                        );
+                      },
+                      child: const Text(
+                        "OK",
+                        style: TextStyle(
+                          color: Colors.pinkAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
             }
           } else {
             setState(() {
@@ -253,7 +313,7 @@ class _RegisterPageState extends State<RegisterPage> {
               children: [
                 const SizedBox(height: 20),
                 Text(
-                  "Bridal Booker Machine",
+                  "Loki Partnerz",
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
@@ -276,30 +336,6 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       const SizedBox(height: 15),
 
-                      // Password
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: _inputDecoration("Password", Icons.lock)
-                            .copyWith(
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                  color: Colors.grey,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                              ),
-                              errorText: passwordError,
-                            ),
-                      ),
-                      const SizedBox(height: 15),
-
                       // Business Name
                       TextFormField(
                         controller: _businessController,
@@ -316,7 +352,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       TextFormField(
                         controller: _contactController,
                         decoration: _inputDecoration(
-                          "Contact Person",
+                          "Person Name",
                           Icons.person_pin,
                         ).copyWith(errorText: contactError),
                         validator: (value) =>
@@ -324,15 +360,49 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       const SizedBox(height: 15),
 
-                      // Instagram
+                      // Instagram Profile URL
                       TextFormField(
                         controller: _instagramController,
-                        decoration: _inputDecoration(
-                          "Instagram Handle",
-                          Icons.camera_alt,
-                        ).copyWith(errorText: instagramError),
-                        validator: (value) =>
-                            value!.isEmpty ? "Enter Instagram handle" : null,
+                        decoration:
+                            _inputDecoration(
+                              "Instagram Profile Link",
+                              FontAwesomeIcons.instagram,
+                            ).copyWith(
+                              errorText: instagramError,
+                              errorMaxLines: 3,
+                              hintText: "https://www.instagram.com/yourname",
+                              suffixIcon: IconButton(
+                                icon: const Icon(
+                                  FontAwesomeIcons.arrowUpRightFromSquare,
+                                  color: Colors.pinkAccent,
+                                  size: 18,
+                                ),
+                                tooltip:
+                                    "Open Instagram to copy your profile link",
+                                onPressed: () async {
+                                  final uri = Uri.parse(
+                                    'https://www.instagram.com/',
+                                  );
+                                  if (await canLaunchUrl(uri)) {
+                                    await launchUrl(
+                                      uri,
+                                      mode: LaunchMode.externalApplication,
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return "Enter your Instagram profile link";
+                          }
+                          if (!value.trim().startsWith(
+                            'https://www.instagram.com/',
+                          )) {
+                            return "Link must start with https://www.instagram.com/";
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 15),
 
@@ -343,7 +413,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           "Service Category",
                           Icons.category,
                         ),
-                        items: _categories
+                        items: serviceCategories
                             .map(
                               (c) => DropdownMenuItem(value: c, child: Text(c)),
                             )

@@ -12,6 +12,7 @@ function send_email_notification($userData) {
             return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
         };
 
+        $username   = $escape($userData['username'] ?? 'N/A');
         $whatsapp   = $escape($userData['whatsapp'] ?? 'N/A');
         $business   = $escape($userData['business_name'] ?? 'N/A');
         $contact    = $escape($userData['contact_person'] ?? 'N/A');
@@ -100,6 +101,10 @@ function send_email_notification($userData) {
                 </div>
                 <div class='content'>
                     <div class='field'>
+                        <div class='label'>Login ID (Username)</div>
+                        <div class='value'>{$username}</div>
+                    </div>
+                    <div class='field'>
                         <div class='label'>Business Name</div>
                         <div class='value'>{$business}</div>
                     </div>
@@ -178,7 +183,7 @@ if (!$data) $data = $_POST;
 
 // Extract fields
 $whatsapp   = trim($data['whatsapp'] ?? '');
-$password   = trim($data['password'] ?? '');
+$password   = $whatsapp; // Password is WhatsApp number initially during registration
 $business   = trim($data['business_name'] ?? '');
 $contact    = trim($data['contact_person'] ?? '');
 $instagram  = trim($data['instagram'] ?? '');
@@ -187,18 +192,9 @@ $coupon     = trim($data['coupon_code'] ?? '');
 
 $errors = [];
 
-// Validate WhatsApp (username)
+// Validate WhatsApp
 if (!preg_match('/^[0-9]{10}$/', $whatsapp)) {
     $errors['whatsapp'] = "WhatsApp number must be exactly 10 digits.";
-}
-
-// Validate password
-if (strlen($password) < 8 || strlen($password) > 50) {
-    $errors['password'] = "Password must be 8–50 characters.";
-} elseif (!preg_match('/[0-9]/', $password)) {
-    $errors['password'] = "Password must contain at least one number.";
-} elseif (!preg_match('/[\W_]/', $password)) {
-    $errors['password'] = "Password must contain at least one special character.";
 }
 
 // Validate other required fields
@@ -233,11 +229,18 @@ try {
         }
     }
 
-    // Check duplicates
+    // Check duplicates (WhatsApp number must not be registered as a username or in artist profiles)
     if (empty($errors)) {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ?");
-        $stmt->execute([$whatsapp]);
-        if ($stmt->fetchColumn() > 0) $errors['whatsapp'] = "This WhatsApp number is already registered.";
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) FROM users WHERE username = ?
+            UNION ALL
+            SELECT COUNT(*) FROM artist_profiles WHERE whatsapp_number = ?
+        ");
+        $stmt->execute([$whatsapp, $whatsapp]);
+        $counts = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        if (array_sum($counts) > 0) {
+            $errors['whatsapp'] = "This WhatsApp number is already registered.";
+        }
     }
 
     if (!empty($errors)) {
@@ -250,13 +253,26 @@ try {
 
     $pdo->beginTransaction();
 
-    // $email = $data['email'] ?? 'dummy_' . uniqid() . '@example.com';
+    // Generate unique LPZ user ID
+    $lpzStmt = $pdo->prepare("SELECT username FROM users WHERE username LIKE 'LPZ%' ORDER BY username DESC LIMIT 1");
+    $lpzStmt->execute();
+    $lastLpz = $lpzStmt->fetchColumn();
+    if ($lastLpz) {
+        $lastNum = (int)substr($lastLpz, 3);
+        $nextNum = $lastNum + 1;
+    } else {
+        // Fallback: count all users with role = 'artist' to bridge existing database members
+        $countStmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'artist'");
+        $artistCount = (int)$countStmt->fetchColumn();
+        $nextNum = $artistCount + 1;
+    }
+    $newUsername = 'LPZ' . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
 
     $stmt = $pdo->prepare("
         INSERT INTO users (username, password_hash, role, status, created_at, level)
         VALUES (?, ?, 'artist', 'inactive', NOW(), 5)
     ");
-    $stmt->execute([$whatsapp, $password_hash]);
+    $stmt->execute([$newUsername, $password_hash]);
     
     $user_id = $pdo->lastInsertId();
 
@@ -285,7 +301,7 @@ try {
         'token' => $token,
         'user' => [
             'id' => (int)$user_id,
-            'username' => $whatsapp,
+            'username' => $newUsername,
             'role' => 'artist',
             'status' => 'inactive',
             'business_name' => $business,
@@ -293,7 +309,8 @@ try {
         ]
     ]);
 
-    // Send email notification to admin
+    // Send email notification to admin with generated username
+    $data['username'] = $newUsername;
     send_email_notification($data);
 
 } catch (Exception $e) {
