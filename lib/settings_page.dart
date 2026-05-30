@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'config/api_config.dart';
+import 'dart:io';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -162,6 +163,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _deleteAccount() async {
+    if (!Platform.isIOS) {
+      return;
+    }
+
     if (_isDeletingAccount) return;
 
     setState(() => _isDeletingAccount = true);
@@ -822,17 +827,19 @@ class _SettingsPageState extends State<SettingsPage> {
                             onTap: () => _showProfileDialog(editAll: false),
                           ),
                         ],
-                        _divider(),
-                        _settingsTile(
-                          icon: Icons.delete_outline,
-                          label: _isDeletingAccount
-                              ? "Deleting Account..."
-                              : "Delete Account",
-                          isDestructive: true,
-                          onTap: _isDeletingAccount
-                              ? () {}
-                              : () => _confirmDeleteAccount(context),
-                        ),
+                        if (Platform.isIOS) ...[
+                          _divider(),
+                          _settingsTile(
+                            icon: Icons.delete_outline,
+                            label: _isDeletingAccount
+                                ? "Deleting Account..."
+                                : "Delete Account",
+                            isDestructive: true,
+                            onTap: _isDeletingAccount
+                                ? () {}
+                                : () => _confirmDeleteAccount(context),
+                          ),
+                        ],
                       ],
                     ),
 
