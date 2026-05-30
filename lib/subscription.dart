@@ -11,6 +11,7 @@ import 'config/api_config.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'meta_events.dart';
 import 'main_shell.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class Level5SubscriptionPage extends StatefulWidget {
   const Level5SubscriptionPage({super.key});
@@ -19,7 +20,8 @@ class Level5SubscriptionPage extends StatefulWidget {
   State<Level5SubscriptionPage> createState() => _Level5SubscriptionPageState();
 }
 
-class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
+class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
+    with WidgetsBindingObserver {
   Razorpay? _razorpay;
 
   String? _razorpayOrderId;
@@ -41,6 +43,10 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
   String? _wistiaId;
   bool _videoLoading = true;
   bool _videoError = false;
+  WebViewController? _videoController;
+  bool _webViewLoaded = false;
+
+  bool _notificationsEnabled = true;
 
   Map<String, dynamic> uiConfig = {};
   bool uiLoaded = false;
@@ -50,8 +56,31 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
 
   bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
-  static const String _subscriptionWebsiteUrl =
-      "https://lpz.lokiwebvibe.com/";
+  static const String _subscriptionWebsiteUrl = "https://lpz.lokiwebvibe.com/";
+
+  void _initializeVideoPlayer() {
+    if (_videoController != null || _wistiaId == null) return;
+
+    _videoController = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000))
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (_) {
+            if (mounted) {
+              setState(() {
+                _webViewLoaded = true;
+              });
+            }
+          },
+        ),
+      )
+      ..loadRequest(
+        Uri.parse(
+          'https://fast.wistia.net/embed/iframe/$_wistiaId?videoFoam=true',
+        ),
+      );
+  }
 
   List<String> getPlanPoints(String planKey) {
     List<String> points = [];
@@ -70,6 +99,16 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
     }
 
     return points;
+  }
+
+  Future<void> _checkNotificationPermission() async {
+    final status = await Permission.notification.status;
+
+    if (!mounted) return;
+
+    setState(() {
+      _notificationsEnabled = status.isGranted;
+    });
   }
 
   Future<void> fetchUIConfig() async {
@@ -105,6 +144,10 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
 
   Future<void> _fetchSubscriptionVideo() async {
     try {
+      setState(() {
+        _videoLoading = false;
+        _webViewLoaded = false;
+      });
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("auth_token");
 
@@ -161,6 +204,10 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
     }
   }
 
+  Future<void> _openNotificationSettings() async {
+    await openAppSettings();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -169,7 +216,9 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
     _fetchSubscriptionVideo();
 
     fetchUIConfig();
+    _checkNotificationPermission();
     // _fireRegistrationEventIfNeeded();
+    WidgetsBinding.instance.addObserver(this);
 
     if (_canUseRazorpayCheckout) {
       _razorpay = Razorpay();
@@ -181,9 +230,17 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _paymentTimeout?.cancel();
     _razorpay?.clear();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkNotificationPermission();
+    }
   }
 
   Future<void> createRazorpayOrder(Map<String, dynamic> plan) async {
@@ -529,23 +586,17 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
   }
 
   Widget _inlineWistiaPlayer() {
-    if (_wistiaId == null) return const SizedBox.shrink();
+    if (_videoController == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-    final controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
-      ..loadRequest(
-        Uri.parse(
-          'https://fast.wistia.net/embed/iframe/$_wistiaId?videoFoam=true',
-        ),
-      );
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        WebViewWidget(controller: _videoController!),
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: WebViewWidget(controller: controller),
-      ),
+        if (!_webViewLoaded) const CircularProgressIndicator(),
+      ],
     );
   }
 
@@ -581,6 +632,8 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
                     color: Colors.black.withValues(alpha: 0.35),
                     child: InkWell(
                       onTap: () {
+                        _initializeVideoPlayer();
+
                         setState(() {
                           _playVideoInline = true;
                         });
@@ -1078,6 +1131,37 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    if (!_notificationsEnabled)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.notifications_off,
+                              color: Colors.orange,
+                            ),
+                            const SizedBox(width: 10),
+
+                            const Expanded(
+                              child: Text(
+                                "Enable notifications to receive new lead alerts and important updates.",
+                                style: TextStyle(fontWeight: FontWeight.w500),
+                              ),
+                            ),
+
+                            TextButton(
+                              onPressed: _openNotificationSettings,
+                              child: const Text("Enable"),
+                            ),
+                          ],
+                        ),
+                      ),
                     const SizedBox(height: 20),
 
                     Wrap(

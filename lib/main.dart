@@ -1,9 +1,13 @@
+import 'dart:convert';
+
+import 'package:bbm_app/config/api_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
@@ -112,6 +116,26 @@ Future<void> _initializeLocalNotifications() async {
   }
 }
 
+Future<void> _syncFcmTokenToServer(String fcmToken) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+
+    final authToken = prefs.getString('auth_token');
+
+    if (authToken == null || authToken.isEmpty) {
+      return;
+    }
+
+    await http.post(
+      Uri.parse(ApiConfig.saveFCMTokenEndpoint),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'api_token': authToken, 'fcm_token': fcmToken}),
+    );
+  } catch (e) {
+    debugPrint('Debug : FCM sync failed: $e');
+  }
+}
+
 // Handle terminated notification
 Future<void> _checkInitialMessage() async {
   try {
@@ -171,6 +195,7 @@ Future<void> _initializeFCM() async {
       if (token != null) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', token);
+        _syncFcmTokenToServer(token);
       }
     } catch (e) {
       debugPrint('Debug : FCM token fetch failed: $e');
@@ -182,6 +207,7 @@ Future<void> _initializeFCM() async {
         debugPrint('Debug : FCM Token refreshed: $newToken');
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', newToken);
+        _syncFcmTokenToServer(newToken);
       } catch (e) {
         debugPrint('Debug : Token refresh save failed: $e');
       }
