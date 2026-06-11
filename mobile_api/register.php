@@ -2,11 +2,21 @@
 if (!function_exists('send_email_notification')) {
 function send_email_notification($userData) {
     try {
-        $to = 'rep123hel@gmail.com'; // Admin email
+        // $to = 'rep123hel@gmail.com'; // Admin email
+        
+        $emails = [
+            'rep123hel@gmail.com',
+            'vetrivel0620@gmail.com'
+        ];
+        
+        $to = implode(',', $emails);
+
         $isPaymentSuccess = ($userData['notification_type'] ?? '') === 'payment_success';
+        $currentDate = (new DateTime('now', new DateTimeZone('Asia/Kolkata')))->format('d-F-Y');
+        
         $subject = $isPaymentSuccess
-            ? 'Payment Successful - BridalBooker Machine'
-            : 'New Artist Registration - BridalBooker Machine';
+            ? 'LPZ Payment Successful - ' . $currentDate
+            : 'LPZ Artist Registration - ' . $currentDate;
 
         $escape = function ($value) {
             return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');

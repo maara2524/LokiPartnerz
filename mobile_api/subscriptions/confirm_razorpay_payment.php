@@ -204,7 +204,8 @@ try {
 
     send_email_notification([
         'notification_type' => 'payment_success',
-        'whatsapp' => $plan['whatsapp_number'] ?: $plan['username'],
+        'whatsapp' => $plan['whatsapp_number'],
+        'username' => $plan['username'],
         'business_name' => $plan['business_name'] ?: 'N/A',
         'contact_person' => $plan['contact_person_name'] ?: 'N/A',
         'instagram' => $plan['instagram_handle'] ?: 'N/A',

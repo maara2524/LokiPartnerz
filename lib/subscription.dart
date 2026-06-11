@@ -1261,24 +1261,24 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
 
                     const SizedBox(height: 14),
                     if (!_isIOS) ...[
-                      _buildPlanCard(
-                        title: uiConfig["trial_title"] ?? "",
-                        priceWidget: priceWithOffer("trial"),
-                        duration: uiConfig["trial_duration"] ?? "",
-                        points: getPlanPoints("trial"),
-                        buttonText: "Start Trial Plan",
-                        onTap: () {
-                          if (trialPlan == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Loading plans, please wait..."),
-                              ),
-                            );
-                            return;
-                          }
-                          createRazorpayOrder(trialPlan!);
-                        },
-                      ),
+                      // _buildPlanCard(
+                      //   title: uiConfig["trial_title"] ?? "",
+                      //   priceWidget: priceWithOffer("trial"),
+                      //   duration: uiConfig["trial_duration"] ?? "",
+                      //   points: getPlanPoints("trial"),
+                      //   buttonText: "Start Trial Plan",
+                      //   onTap: () {
+                      //     if (trialPlan == null) {
+                      //       ScaffoldMessenger.of(context).showSnackBar(
+                      //         const SnackBar(
+                      //           content: Text("Loading plans, please wait..."),
+                      //         ),
+                      //       );
+                      //       return;
+                      //     }
+                      //     createRazorpayOrder(trialPlan!);
+                      //   },
+                      // ),
                       _buildPlanCard(
                         title: uiConfig["basic_title"] ?? "",
                         priceWidget: priceWithOffer("basic"),
