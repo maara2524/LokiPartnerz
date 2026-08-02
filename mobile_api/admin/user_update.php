@@ -61,10 +61,5 @@ try {
         $pdo->rollBack();
     }
 
-    if ($e instanceof RuntimeException) {
-        admin_error('Artist level must be between 1 and 5', 400);
-    }
-
-    error_log('Admin user update failed: ' . $e->getMessage());
-    admin_error('Unable to update user. Please try again.', 500);
+    admin_error($e->getMessage(), 400);
 }

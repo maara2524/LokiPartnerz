@@ -31,6 +31,5 @@ try {
         $pdo->rollBack();
     }
 
-    error_log('Admin user delete failed: ' . $e->getMessage());
-    admin_error('Unable to delete user. Please try again.', 500);
+    admin_error($e->getMessage(), 400);
 }

@@ -52,7 +52,5 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-
-    error_log('Admin user status update failed: ' . $e->getMessage());
-    admin_error('Unable to update user status. Please try again.', 500);
+    admin_error($e->getMessage(), 400);
 }

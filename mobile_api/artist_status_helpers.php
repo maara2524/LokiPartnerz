@@ -20,9 +20,9 @@ function artist_status_label($status) {
         case 'booked':
             return 'Booked';
         case 'booked_inside_bbm':
-            return 'Booked inside app';
+            return 'Booked inside BBM';
         case 'booked_outside_bbm':
-            return 'Booked outside app';
+            return 'Booked outside BBM';
         case 'contacted':
             return 'Contacted';
         case 'closed':
@@ -102,3 +102,4 @@ function get_artist_display_status(PDO $pdo, int $leadId, int $viewerUserId, ?st
 
     return $ownStatus;
 }
+

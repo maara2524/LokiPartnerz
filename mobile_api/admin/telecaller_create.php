@@ -65,6 +65,5 @@ try {
         $pdo->rollBack();
     }
 
-    error_log('Admin telecaller create failed: ' . $e->getMessage());
-    admin_error('Unable to create telecaller. Please try again.', 500);
+    admin_error($e->getMessage(), 400);
 }

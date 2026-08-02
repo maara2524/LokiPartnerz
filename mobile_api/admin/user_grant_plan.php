@@ -73,6 +73,5 @@ try {
         $pdo->rollBack();
     }
 
-    error_log('Admin grant plan failed: ' . $e->getMessage());
-    admin_error('Unable to grant plan. Please try again.', 500);
+    admin_error($e->getMessage(), 400);
 }

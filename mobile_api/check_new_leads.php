@@ -80,7 +80,7 @@ try {
         // Format services for notification
         $servicesText = !empty($services) ? implode(', ', $services) : 'Makeup services';
 
-        $title = "New Lead Available!";
+        $title = "💄 New Lead Available!";
         $body = "$leadName is interested in $servicesText.";
 
         // === STEP 5: Send notification ===

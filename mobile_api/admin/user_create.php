@@ -75,10 +75,5 @@ try {
         $pdo->rollBack();
     }
 
-    if ($e instanceof RuntimeException && $e->getMessage() === 'Username already exists') {
-        admin_error('Username already exists', 409);
-    }
-
-    error_log('Admin user create failed: ' . $e->getMessage());
-    admin_error('Unable to create user. Please try again.', 500);
+    admin_error($e->getMessage(), 400);
 }

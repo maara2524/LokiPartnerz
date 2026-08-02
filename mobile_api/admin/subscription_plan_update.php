@@ -65,7 +65,5 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-
-    error_log('Admin subscription plan update failed: ' . $e->getMessage());
-    admin_error('Unable to update plan. Please try again.', 500);
+    admin_error($e->getMessage(), 400);
 }

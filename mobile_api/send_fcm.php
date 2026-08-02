@@ -20,7 +20,7 @@ $rawInput = file_get_contents("php://input");
 $input = [];
 parse_str($rawInput, $input);
 
-$title = trim($input['title'] ?? 'New Lead Available!');
+$title = trim($input['title'] ?? '📢 New Lead Available!');
 $body  = trim($input['body']  ?? 'A new lead has been added.');
 $servicesJson = $input['services'] ?? null;
 

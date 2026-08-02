@@ -18,7 +18,7 @@ $pdo = admin_get_pdo();
 $pdo->beginTransaction();
 
 try {
-    foreach (['lead_notes', 'lead_activity', 'lead_status_history', 'claimed_leads_log'] as $table) {
+    foreach (['lead_notes', 'lead_activity', 'lead_status_history'] as $table) {
         $pdo->prepare("DELETE FROM {$table} WHERE lead_id = ?")->execute([$leadId]);
     }
 
@@ -31,6 +31,5 @@ try {
         $pdo->rollBack();
     }
 
-    error_log('Admin lead delete failed: ' . $e->getMessage());
-    admin_error('Unable to delete lead. Please try again.', 500);
+    admin_error($e->getMessage(), 400);
 }

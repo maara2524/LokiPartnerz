@@ -76,7 +76,7 @@ try {
 
     $userId = (int)$user['id'];
     $userRole = $user['role'];
-    $telecallerLeadStartDate = '2026-05-01 00:00:00';
+    $telecallerLeadStartDate = '2026-07-01 00:00:00';
 
     // Get artist category
     $artistCategory = null;

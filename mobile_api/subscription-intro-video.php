@@ -70,7 +70,7 @@ try {
         exit();
     }
 
-    // FETCH FREE VIDEO ONLY
+    // 🔹 FETCH FREE VIDEO ONLY
     $stmt = $pdo->prepare("
         SELECT
             id,

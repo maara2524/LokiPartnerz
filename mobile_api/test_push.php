@@ -28,7 +28,7 @@ $payload = [
     "message" => [
         "token" => $fcmToken,
         "notification" => [
-            "title" => "Test Notification",
+            "title" => "🔥 Test Notification",
             "body"  => "This is a test push notification from your server."
         ],
         "data" => [
@@ -50,5 +50,5 @@ $response = $httpClient->post($url, [
 ]);
 
 // ---- STEP 4: Print Result ----
-echo "Notification sent successfully:<br>";
+echo "✅ Notification sent successfully:<br>";
 print_r(json_decode($response->getBody()->getContents(), true));

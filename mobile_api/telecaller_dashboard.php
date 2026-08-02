@@ -60,12 +60,6 @@ try {
         exit();
     }
 
-    if (($user['role'] ?? '') !== 'telecaller') {
-        http_response_code(403);
-        echo json_encode(['error' => 'You do not have permission to access this resource']);
-        exit();
-    }
-
     $userId = (int)$user['id'];
 
     // TOTAL LEADS CONTACTED
