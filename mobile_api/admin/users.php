@@ -26,10 +26,13 @@ $sql = "
         t.display_name AS team_display_name,
         t.phone AS team_phone,
         t.email AS team_email,
+        sh.id AS subscription_id,
         sh.plan_name,
         sh.total_leads_claimed,
+        sh.max_claim_limit,
         sh.status AS subscription_status,
-        sh.end_date
+        sh.end_date,
+        ss.setting_value AS default_claim_limit
     FROM users u
     LEFT JOIN artist_profiles ap ON ap.user_id = u.id
     LEFT JOIN teams t ON t.user_id = u.id AND t.role = 'telecaller'
@@ -42,6 +45,10 @@ $sql = "
             GROUP BY user_id
         ) latest ON latest.max_id = sh1.id
     ) sh ON sh.user_id = u.id
+    LEFT JOIN subscription_plans sp ON sp.id = sh.plan_id
+    LEFT JOIN system_settings ss
+      ON ss.setting_key = 'max_total_claims'
+     AND ss.user_level = COALESCE(sp.artist_level, u.level)
     WHERE u.role IN ('artist', 'telecaller', 'admin', 'lead_manager')
     ORDER BY u.created_at DESC, u.id DESC
 ";
@@ -75,6 +82,10 @@ $users = array_map(
         $phone = $role === 'telecaller'
             ? (string)($row['team_phone'] ?? '')
             : (string)($row['whatsapp_number'] ?? '');
+        $claims = (int)($row['total_leads_claimed'] ?? 0);
+        $storedClaimLimit = (int)($row['max_claim_limit'] ?? 0);
+        $defaultClaimLimit = (int)($row['default_claim_limit'] ?? 0);
+        $claimLimit = $storedClaimLimit > 0 ? $storedClaimLimit : $defaultClaimLimit;
 
         return [
             'id' => (int)$row['id'],
@@ -88,7 +99,11 @@ $users = array_map(
             'business' => $business,
             'location' => (string)($row['location'] ?? ''),
             'phone' => $phone,
-            'claims' => (int)($row['total_leads_claimed'] ?? 0),
+            'claims' => $claims,
+            'claim_limit' => $claimLimit,
+            'claim_balance' => max(0, $claimLimit - $claims),
+            'subscription_id' => (int)($row['subscription_id'] ?? 0),
+            'max_claim_limit' => $storedClaimLimit,
             'plan' => $planName,
             'joined' => admin_format_datetime($row['created_at']) ?? '',
             'subscription_status' => $subscriptionStatus,

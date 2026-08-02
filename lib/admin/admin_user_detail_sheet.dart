@@ -7,6 +7,8 @@ class AdminUserDetailSheet extends StatefulWidget {
   final Map<String, dynamic> user;
   final Future<void> Function(Map<String, dynamic> updatedUser) onSave;
   final Future<void> Function(int id, String newStatus) onStatusToggle;
+  final Future<Map<String, dynamic>> Function(int id, int maxClaimLimit)
+      onClaimLimitUpdate;
   final Future<void> Function(int id) onDelete;
 
   const AdminUserDetailSheet({
@@ -14,6 +16,7 @@ class AdminUserDetailSheet extends StatefulWidget {
     required this.user,
     required this.onSave,
     required this.onStatusToggle,
+    required this.onClaimLimitUpdate,
     required this.onDelete,
   });
 
@@ -440,6 +443,12 @@ class _AdminUserDetailSheetState extends State<AdminUserDetailSheet> {
   }
 
   Widget _buildSubscriptionSection() {
+    final claims = _userInt('claims');
+    final claimLimit = _userInt('claim_limit');
+    final balance = _user.containsKey('claim_balance')
+        ? _userInt('claim_balance')
+        : (claimLimit > claims ? claimLimit - claims : 0);
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BbmAdminTheme.cardDecoration,
@@ -460,58 +469,72 @@ class _AdminUserDetailSheetState extends State<AdminUserDetailSheet> {
               const SizedBox(width: 10),
               Expanded(
                 child: _statBox(
-                  'Total Claims',
-                  '${_user['claims']}',
+                  'Claimed',
+                  '$claims',
                   BbmAdminTheme.accentIndigo,
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: _statBox(
-                  'Level',
-                  'L${_user['level']}',
-                  BbmAdminTheme.levelColor(_user['level'] as int),
+                  'Balance',
+                  '$balance / $claimLimit',
+                  BbmAdminTheme.accentTeal,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          GestureDetector(
+          _subscriptionAction(
+            icon: Icons.add_circle_outline,
+            label: 'Give Artist Leads',
+            onTap: _showLeadAllowanceDialog,
+          ),
+          const SizedBox(height: 10),
+          _subscriptionAction(
+            icon: Icons.card_giftcard_outlined,
+            label: 'Grant / Override Plan',
             onTap: _showGrantPlanDialog,
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: BbmAdminTheme.purple50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFDDD6FE), width: 1),
-              ),
-              child: const Row(
-                children: [
-                  Icon(
-                    Icons.card_giftcard_outlined,
-                    color: BbmAdminTheme.purple600,
-                    size: 20,
-                  ),
-                  SizedBox(width: 10),
-                  Text(
-                    'Grant / Override Plan',
-                    style: TextStyle(
-                      color: BbmAdminTheme.purple600,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                  Spacer(),
-                  Icon(
-                    Icons.chevron_right,
-                    color: BbmAdminTheme.purple400,
-                    size: 18,
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _subscriptionAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: BbmAdminTheme.purple50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFDDD6FE), width: 1),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: BbmAdminTheme.purple600, size: 20),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: const TextStyle(
+                color: BbmAdminTheme.purple600,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+            const Spacer(),
+            const Icon(
+              Icons.chevron_right,
+              color: BbmAdminTheme.purple400,
+              size: 18,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -677,6 +700,195 @@ class _AdminUserDetailSheetState extends State<AdminUserDetailSheet> {
             style: const TextStyle(
               fontSize: 10,
               color: BbmAdminTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  int _userInt(String key) {
+    final value = _user[key];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse('${value ?? 0}') ?? 0;
+  }
+
+  void _showLeadAllowanceDialog() {
+    final claimed = _userInt('claims');
+    final currentLimit = _userInt('claim_limit');
+    final controller = TextEditingController(text: '$currentLimit');
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        bool saving = false;
+        String? error;
+
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final typedLimit =
+                int.tryParse(controller.text.trim()) ?? currentLimit;
+            final balance = typedLimit > claimed ? typedLimit - claimed : 0;
+
+            void addLeads(int amount) {
+              final current =
+                  int.tryParse(controller.text.trim()) ?? currentLimit;
+              controller.text = '${current + amount}';
+              setDialogState(() => error = null);
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: const Text(
+                'Give Artist Leads',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: BbmAdminTheme.textPrimary,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _allowanceRow('Claimed', '$claimed'),
+                  _allowanceRow('New balance', '$balance'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setDialogState(() => error = null),
+                    decoration: InputDecoration(
+                      labelText: 'Total lead allowance',
+                      errorText: error,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    children: [5, 10, 25].map((amount) {
+                      return ActionChip(
+                        label: Text('+$amount'),
+                        onPressed: saving ? null : () => addLeads(amount),
+                        backgroundColor: BbmAdminTheme.purple50,
+                        labelStyle: const TextStyle(
+                          color: BbmAdminTheme.purple600,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: saving ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          final newLimit =
+                              int.tryParse(controller.text.trim()) ?? -1;
+                          if (newLimit < claimed) {
+                            setDialogState(() {
+                              error = 'Must be at least claimed leads';
+                            });
+                            return;
+                          }
+
+                          setDialogState(() => saving = true);
+                          try {
+                            final response = await widget.onClaimLimitUpdate(
+                              _user['id'] as int,
+                              newLimit,
+                            );
+                            if (!mounted) return;
+
+                            final subscription = Map<String, dynamic>.from(
+                              (response['subscription'] as Map?) ?? {},
+                            );
+                            final updatedClaimLimit =
+                                subscription['max_claim_limit'] ?? newLimit;
+                            final updatedClaims =
+                                subscription['total_leads_claimed'] ?? claimed;
+                            final updatedBalance =
+                                subscription['balance'] ??
+                                (newLimit > claimed ? newLimit - claimed : 0);
+
+                            setState(() {
+                              _user['claim_limit'] = updatedClaimLimit;
+                              _user['max_claim_limit'] = updatedClaimLimit;
+                              _user['claims'] = updatedClaims;
+                              _user['claim_balance'] = updatedBalance;
+                              _user['subscription_status'] =
+                                  subscription['status'] ?? 'active';
+                              _user['status'] = 'active';
+                              if (subscription['level'] != null) {
+                                _user['level'] = subscription['level'];
+                                _selectedLevel = _userInt('level');
+                              }
+                            });
+
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Lead allowance updated'),
+                                backgroundColor: Color(0xFF10B981),
+                              ),
+                            );
+                          } on AdminApiException catch (e) {
+                            setDialogState(() {
+                              saving = false;
+                              error = e.message;
+                            });
+                          } catch (e) {
+                            setDialogState(() {
+                              saving = false;
+                              error = e.toString();
+                            });
+                          }
+                        },
+                  child: Text(
+                    saving ? 'Saving...' : 'Save',
+                    style: const TextStyle(
+                      color: BbmAdminTheme.purple600,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) => controller.dispose());
+  }
+
+  Widget _allowanceRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: BbmAdminTheme.textSecondary,
+              fontSize: 12,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: const TextStyle(
+              color: BbmAdminTheme.textPrimary,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

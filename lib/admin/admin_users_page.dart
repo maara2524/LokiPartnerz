@@ -108,6 +108,11 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
             }
           });
         },
+        onClaimLimitUpdate: (id, maxClaimLimit) async {
+          final response = await _api.updateUserClaimLimit(id, maxClaimLimit);
+          await _loadUsers();
+          return response;
+        },
         onDelete: (id) async {
           await _api.deleteUser(id);
           setState(() => _allUsers.removeWhere((u) => u['id'] == id));
@@ -242,6 +247,8 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
 
   Widget _buildUserCard(Map<String, dynamic> user) {
     final isTelecaller = user['role'] == 'telecaller';
+    final claims = _intValue(user, 'claims');
+    final claimLimit = _intValue(user, 'claim_limit');
 
     return GestureDetector(
       onTap: () => _openUserDetail(user),
@@ -290,7 +297,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                       const Spacer(),
                       if (!isTelecaller)
                         Text(
-                          '${user['claims']} claims',
+                          '$claims / $claimLimit leads',
                           style: const TextStyle(fontSize: 11, color: BbmAdminTheme.textMuted),
                         ),
                     ],
@@ -337,6 +344,13 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       ),
       child: Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
     );
+  }
+
+  int _intValue(Map<String, dynamic> source, String key) {
+    final value = source[key];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse('${value ?? 0}') ?? 0;
   }
 
   Widget _buildEmpty() {

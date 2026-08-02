@@ -129,6 +129,24 @@ try {
     $resolvedPlanId = (int)$plan['id'];
     $durationDays = (int)$plan['duration_days'];
 
+    // Artist level mapping
+    if (!isset($plan['artist_level']) || $plan['artist_level'] === '') {
+        throw new Exception("INVALID_PLAN_MAPPING");
+    }
+
+    $artistLevel = (int)$plan['artist_level'];
+    log_debug($debug, "Artist level: " . $artistLevel);
+
+    $limitStmt = $pdo->prepare("
+        SELECT setting_value
+        FROM system_settings
+        WHERE setting_key = 'max_total_claims'
+          AND user_level = ?
+        LIMIT 1
+    ");
+    $limitStmt->execute([$artistLevel]);
+    $maxClaimLimit = (int)($limitStmt->fetchColumn() ?: 0);
+
     // Expire old
     $pdo->prepare("
         UPDATE subscription_history
@@ -144,7 +162,7 @@ try {
         (
             user_id, plan_id, plan_name, subscription_type,
             start_date, end_date, total_leads_claimed,
-            amount_paid, payment_id, order_id, status
+            amount_paid, payment_id, order_id, status, max_claim_limit
         )
         SELECT
             :user_id, :plan_id, sp.name, 'paid',
@@ -154,7 +172,8 @@ try {
             st.amount,
             :payment_id,
             :order_id,
-            'active'
+            'active',
+            :max_claim_limit
         FROM subscription_transactions st
         JOIN subscription_plans sp ON sp.id = st.plan_id
         WHERE st.razorpay_order_id = :order_id
@@ -166,19 +185,11 @@ try {
         ':user_id' => $userId,
         ':plan_id' => $resolvedPlanId,
         ':payment_id' => $paymentId,
-        ':order_id' => $orderId
+        ':order_id' => $orderId,
+        ':max_claim_limit' => $maxClaimLimit
     ]);
 
     log_debug($debug, "Subscription inserted");
-
-    // Artist level mapping
-    if (!isset($plan['artist_level']) || $plan['artist_level'] === '') {
-        throw new Exception("INVALID_PLAN_MAPPING");
-    }
-
-    $artistLevel = (int)$plan['artist_level'];
-
-    log_debug($debug, "Artist level: " . $artistLevel);
 
     // Update artist profile
     $pdo->prepare("

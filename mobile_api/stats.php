@@ -66,11 +66,11 @@ try {
     // Optional active subscription stats.
     // Keep claimed lead history available even when there is no active plan.
     $stmt = $pdo->prepare("
-        SELECT id, plan_id, plan_name, start_date, total_leads_claimed
+        SELECT id, plan_id, plan_name, start_date, total_leads_claimed, max_claim_limit
         FROM subscription_history
         WHERE user_id = ?
           AND status = 'active'
-        ORDER BY start_date DESC
+        ORDER BY start_date DESC, id DESC
         LIMIT 1
     ");
     $stmt->execute([$userId]);
@@ -81,15 +81,18 @@ try {
     $balance = 0;
 
     if ($subscription) {
-        $stmt = $pdo->prepare("
-            SELECT setting_value
-            FROM system_settings
-            WHERE setting_key = 'max_total_claims'
-              AND user_level = ?
-            LIMIT 1
-        ");
-        $stmt->execute([$userLevel]);
-        $totalAllowedClaims = (int)($stmt->fetchColumn() ?: 0);
+        $totalAllowedClaims = (int)($subscription['max_claim_limit'] ?? 0);
+        if ($totalAllowedClaims <= 0) {
+            $stmt = $pdo->prepare("
+                SELECT setting_value
+                FROM system_settings
+                WHERE setting_key = 'max_total_claims'
+                  AND user_level = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$userLevel]);
+            $totalAllowedClaims = (int)($stmt->fetchColumn() ?: 0);
+        }
 
         $claimed = (int)$subscription['total_leads_claimed'];
         $balance = max(0, $totalAllowedClaims - $claimed);

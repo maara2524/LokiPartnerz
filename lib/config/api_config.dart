@@ -43,6 +43,7 @@ class ApiConfig {
   static const String adminUserToggleStatusEndpoint = "$baseUrl/mobile_api/admin/user_toggle_status.php";
   static const String adminUserDeleteEndpoint = "$baseUrl/mobile_api/admin/user_delete.php";
   static const String adminUserGrantPlanEndpoint = "$baseUrl/mobile_api/admin/user_grant_plan.php";
+  static const String adminUserClaimLimitUpdateEndpoint = "$baseUrl/mobile_api/admin/user_claim_limit_update.php";
   static const String adminLeadsEndpoint = "$baseUrl/mobile_api/admin/leads.php";
   static const String adminLeadDetailEndpoint = "$baseUrl/mobile_api/admin/lead_detail.php";
   static const String adminLeadUpdateEndpoint = "$baseUrl/mobile_api/admin/lead_update.php";

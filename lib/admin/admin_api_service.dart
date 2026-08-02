@@ -110,6 +110,16 @@ class AdminApiService {
     });
   }
 
+  Future<Map<String, dynamic>> updateUserClaimLimit(
+    int id,
+    int maxClaimLimit,
+  ) async {
+    return _post(ApiConfig.adminUserClaimLimitUpdateEndpoint, {
+      'id': id,
+      'max_claim_limit': maxClaimLimit,
+    });
+  }
+
   Future<List<Map<String, dynamic>>> fetchLeads() async {
     final data = await _get(ApiConfig.adminLeadsEndpoint);
     return List<Map<String, dynamic>>.from(data['leads'] as List);
