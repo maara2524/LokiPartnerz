@@ -19,11 +19,21 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  static const Duration _requestTimeout = Duration(seconds: 20);
+
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
   String errorMessage = "";
   bool _obscurePassword = true;
+
+  void _showError(String message) {
+    if (!mounted) return;
+    setState(() {
+      errorMessage = message;
+      isLoading = false;
+    });
+  }
 
   Map<String, dynamic>? _tryParseJsonObject(String responseBody) {
     if (responseBody.trim().isEmpty) {
@@ -59,7 +69,7 @@ class _LoginPageState extends State<LoginPage> {
         Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'api_token': userAuthToken, 'fcm_token': token}),
-      );
+      ).timeout(_requestTimeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -93,7 +103,7 @@ class _LoginPageState extends State<LoginPage> {
           "username": emailController.text.trim(),
           "password": passwordController.text.trim(),
         }),
-      );
+      ).timeout(_requestTimeout);
 
       // print('Response status: ${response.statusCode}');
       // print('Response body: ${response.body}');
@@ -101,18 +111,13 @@ class _LoginPageState extends State<LoginPage> {
 
       if (response.statusCode == 200) {
         if (response.body.isEmpty) {
-          setState(() {
-            errorMessage = "Server returned empty response";
-          });
+          _showError("Server returned empty response");
           return;
         }
 
         final data = _tryParseJsonObject(response.body);
         if (data == null) {
-          setState(() {
-            errorMessage = "Server returned invalid JSON";
-            isLoading = false;
-          });
+          _showError("Server returned invalid JSON");
           return;
         }
 
@@ -182,15 +187,13 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     } on NetworkException catch (e) {
-      setState(() {
-        errorMessage = e.message;
-        isLoading = false;
-      });
+      _showError(e.message);
+    } on TimeoutException catch (e) {
+      _showError(NetworkUtils.friendlyMessageFor(e));
+    } on http.ClientException catch (e) {
+      _showError(NetworkUtils.friendlyMessageFor(e));
     } catch (e) {
-      setState(() {
-        errorMessage = "An error occurred: ${e.toString()}";
-        isLoading = false;
-      });
+      _showError(NetworkUtils.friendlyMessageFor(e));
     }
   }
 
@@ -294,6 +297,7 @@ class _LoginPageState extends State<LoginPage> {
                       if (errorMessage.isNotEmpty)
                         Text(
                           errorMessage,
+                          textAlign: TextAlign.center,
                           style: const TextStyle(color: Colors.red),
                         ),
 

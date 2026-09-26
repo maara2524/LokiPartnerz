@@ -1,9 +1,17 @@
+import 'dart:async';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:http/http.dart' as http;
 
 class NetworkUtils {
+  static const String connectionProblemMessage =
+      'Unable to connect. Please check your internet connection and try again.';
+  static const String timeoutMessage =
+      'Connection timed out. Please check your internet connection and try again.';
+
   static final Connectivity _connectivity = Connectivity();
 
-  // Check if device has internet connection
+  // Checks whether the device currently has a network interface available.
   static Future<bool> hasInternetConnection() async {
     final result = await _connectivity.checkConnectivity();
     return _isConnected(result);
@@ -27,6 +35,36 @@ class NetworkUtils {
         'No internet connection. Please check your connection and try again.',
       );
     }
+  }
+
+  static bool isConnectionError(Object error) {
+    if (error is NetworkException ||
+        error is TimeoutException ||
+        error is http.ClientException) {
+      return true;
+    }
+
+    final message = error.toString().toLowerCase();
+    return message.contains('socketexception') ||
+        message.contains('failed host lookup') ||
+        message.contains('connection failed') ||
+        message.contains('connection refused') ||
+        message.contains('connection reset') ||
+        message.contains('network is unreachable');
+  }
+
+  static String friendlyMessageFor(Object error) {
+    if (error is NetworkException) {
+      return error.message;
+    }
+    if (error is TimeoutException) {
+      return timeoutMessage;
+    }
+    if (isConnectionError(error)) {
+      return connectionProblemMessage;
+    }
+
+    return 'Something went wrong. Please try again.';
   }
 }
 
