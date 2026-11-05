@@ -1,1 +1,32 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"lead-management-app-74c44","appId":"1:103543831309:android:8960a81c865ee57bccce44","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"lead-management-app-74c44","configurations":{"android":"1:103543831309:android:8960a81c865ee57bccce44","ios":"1:103543831309:ios:10dca50b3a60ab19ccce44","macos":"1:103543831309:ios:10dca50b3a60ab19ccce44","web":"1:103543831309:web:b0ad6ad8995425beccce44","windows":"1:103543831309:web:8a9e25a6ca5f4d2bccce44"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "lead-management-app-74c44",
+          "appId": "1:103543831309:android:8960a81c865ee57bccce44",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "lead-management-app-74c44",
+          "appId": "1:103543831309:ios:5abacb86219615daccce44",
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "lead-management-app-74c44",
+          "configurations": {
+            "android": "1:103543831309:android:8960a81c865ee57bccce44",
+            "ios": "1:103543831309:ios:5abacb86219615daccce44",
+            "macos": "1:103543831309:ios:5abacb86219615daccce44",
+            "web": "1:103543831309:web:b0ad6ad8995425beccce44",
+            "windows": "1:103543831309:web:8a9e25a6ca5f4d2bccce44"
+          }
+        }
+      }
+    }
+  }
+}

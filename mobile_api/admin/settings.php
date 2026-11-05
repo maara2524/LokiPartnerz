@@ -9,13 +9,36 @@ admin_require_user(['admin']);
 
 $pdo = admin_get_pdo();
 
-$version = $pdo->query(
-    "SELECT id, latest_version, minimum_version, update_required, update_message, playstore_url
+$versionRows = $pdo->query(
+    "SELECT id, platform, latest_version, minimum_version, update_required, update_message, playstore_url
      FROM app_version_config
-     WHERE platform = 'android'
-     ORDER BY id DESC
-     LIMIT 1"
-)->fetch();
+     WHERE platform IN ('android', 'ios')
+     ORDER BY id DESC"
+)->fetchAll();
+
+$versions = [];
+foreach ($versionRows as $row) {
+    // Keep the newest row per platform.
+    if (!isset($versions[$row['platform']])) {
+        $versions[$row['platform']] = $row;
+    }
+}
+
+$mapVersion = static function (?array $row): array {
+    return [
+        'id' => (int)($row['id'] ?? 0),
+        'platform' => (string)($row['platform'] ?? ''),
+        'latest_version' => (string)($row['latest_version'] ?? ''),
+        'minimum_version' => (string)($row['minimum_version'] ?? ''),
+        'update_required' => !empty($row['update_required']),
+        'update_message' => (string)($row['update_message'] ?? ''),
+        'playstore_url' => (string)($row['playstore_url'] ?? ''),
+        'store_url' => (string)($row['playstore_url'] ?? ''),
+    ];
+};
+
+$version = $versions['android'] ?? null;
+$versionIos = $versions['ios'] ?? null;
 
 $settingsRows = $pdo->query(
     "SELECT setting_key, setting_value
@@ -41,13 +64,13 @@ $telecallers = $pdo->query(
 )->fetchAll();
 
 admin_success([
-    'version' => [
-        'id' => (int)($version['id'] ?? 0),
-        'latest_version' => (string)($version['latest_version'] ?? ''),
-        'minimum_version' => (string)($version['minimum_version'] ?? ''),
-        'update_required' => !empty($version['update_required']),
-        'update_message' => (string)($version['update_message'] ?? ''),
-        'playstore_url' => (string)($version['playstore_url'] ?? ''),
+    // "version" is kept for older admin app builds. "versions" exposes both
+    // platforms so the admin screen can edit Android and iOS independently.
+    'version' => $mapVersion($version),
+    'version_ios' => $mapVersion($versionIos),
+    'versions' => [
+        'android' => $mapVersion($version),
+        'ios' => $mapVersion($versionIos),
     ],
     'toggles' => [
         'fcm_enabled' => (($settings['notification_email_enabled'] ?? '1') === '1'),

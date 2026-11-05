@@ -3,8 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+
 import 'config/api_config.dart';
-import 'dart:io';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -40,6 +41,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool isIncomplete = false;
   bool _isLoggingOut = false;
   bool _isDeletingAccount = false;
+
+  bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   bool _isValidUsername(String v) => v.length >= 4;
   bool _isValidWhatsapp(String v) => RegExp(r'^[0-9]{10}$').hasMatch(v);
@@ -163,7 +166,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _deleteAccount() async {
-    if (!Platform.isIOS) {
+    if (!_isIOS) {
       return;
     }
 
@@ -827,7 +830,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             onTap: () => _showProfileDialog(editAll: false),
                           ),
                         ],
-                        if (Platform.isIOS) ...[
+                        if (_isIOS) ...[
                           _divider(),
                           _settingsTile(
                             icon: Icons.delete_outline,

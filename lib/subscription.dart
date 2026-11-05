@@ -12,6 +12,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'meta_events.dart';
 import 'main_shell.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'utils/notification_permission.dart';
 
 class Level5SubscriptionPage extends StatefulWidget {
   const Level5SubscriptionPage({super.key});
@@ -102,12 +103,12 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
   }
 
   Future<void> _checkNotificationPermission() async {
-    final status = await Permission.notification.status;
+    final enabled = await areNotificationsEnabled();
 
     if (!mounted) return;
 
     setState(() {
-      _notificationsEnabled = status.isGranted;
+      _notificationsEnabled = enabled;
     });
   }
 
@@ -244,6 +245,15 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
   }
 
   Future<void> createRazorpayOrder(Map<String, dynamic> plan) async {
+    if (_isIOS) {
+      _showDialog(
+        title: "Subscription",
+        message:
+            "Your subscription is managed outside the app. Please sign in with the account you subscribed with, or contact support for help.",
+      );
+      return;
+    }
+
     if (!_canUseRazorpayCheckout) {
       await _openSubscriptionWebsite();
       return;
@@ -308,6 +318,36 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
       Uri.parse(_subscriptionWebsiteUrl),
       mode: LaunchMode.externalApplication,
     );
+  }
+
+  Future<void> _contactSupport() async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: ApiConfig.supportEmail,
+      queryParameters: {'subject': 'Loki Partnerz iOS app - subscription help'},
+    );
+
+    try {
+      final opened = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!opened && mounted) {
+        _showDialog(
+          title: "Contact Support",
+          message:
+              "Please email ${ApiConfig.supportEmail} and our team will help you with your subscription.",
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      _showDialog(
+        title: "Contact Support",
+        message:
+            "Please email ${ApiConfig.supportEmail} and our team will help you with your subscription.",
+      );
+    }
   }
 
   void _showErrorDialog(String message) {
@@ -1251,13 +1291,55 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
                     const SizedBox(height: 14),
 
                     if (_isIOS)
-                      _commonActionCard(
-                        icon: Icons.language,
-                        title: "Visit Website",
-                        subtitle: "Open Loki Partnerz in your browser",
-                        outlined: true,
-                        onTap: _openSubscriptionWebsite,
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.purpleAccent.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.info_outline,
+                              color: Colors.purpleAccent,
+                              size: 28,
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              "Subscription managed outside the app",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.purpleAccent,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              "Access is linked to the Loki Partnerz account you used when you subscribed. If your account is inactive, sign in with the same account or contact support for help.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                    if (_isIOS) ...[
+                      const SizedBox(height: 14),
+                      _commonActionCard(
+                        icon: Icons.support_agent,
+                        title: "Contact Support",
+                        subtitle: ApiConfig.supportEmail,
+                        outlined: true,
+                        onTap: _contactSupport,
+                      ),
+                    ],
 
                     const SizedBox(height: 14),
                     if (!_isIOS) ...[

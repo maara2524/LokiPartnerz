@@ -1,4 +1,5 @@
 import 'package:bbm_app/main_shell.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
@@ -358,18 +359,25 @@ class _LoginPageState extends State<LoginPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          TextButton(
-                            onPressed: () {
-                              // ScaffoldMessenger.of(context).showSnackBar(
-                              //   const SnackBar(
-                              //     content: Text("sign up - coming soon"),
-                              //   ),
-                              // );
-                              Navigator.pushNamed(context, '/register');
-                            },
-                            child: const Text("Create a new account? Sign Up"),
-                          ),
-                          const SizedBox(width: 10),
+                          // The iOS build is a companion app for existing
+                          // subscribers. Account creation and subscription
+                          // purchase stay outside the app, so do not offer
+                          // self-registration on iOS.
+                          if (kIsWeb ||
+                              defaultTargetPlatform != TargetPlatform.iOS) ...[
+                            TextButton(
+                              onPressed: () {
+                                // ScaffoldMessenger.of(context).showSnackBar(
+                                //   const SnackBar(
+                                //     content: Text("sign up - coming soon"),
+                                //   ),
+                                // );
+                                Navigator.pushNamed(context, '/register');
+                              },
+                              child: const Text("Create a new account? Sign Up"),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
                           // TextButton(
                           //   onPressed: () {
                           //     ScaffoldMessenger.of(context).showSnackBar(

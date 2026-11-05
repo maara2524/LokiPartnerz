@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyCXJeJyLFuwNMbGqBf_TF27sniUu51UH5E</string>
+	<key>GCM_SENDER_ID</key>
+	<string>103543831309</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.lwv.bridalbookermachine</string>
+	<key>PROJECT_ID</key>
+	<string>lead-management-app-74c44</string>
+	<key>STORAGE_BUCKET</key>
+	<string>lead-management-app-74c44.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:103543831309:ios:5abacb86219615daccce44</string>
+	<key>DATABASE_URL</key>
+	<string>https://lead-management-app-74c44-default-rtdb.firebaseio.com</string>
+</dict>
+</plist>

@@ -4,6 +4,7 @@ class ApiConfig {
 
   static const String baseUrl = "https://bbm.lokiwebvibe.com"; 
   static const String privacyPolicyUrl = "$baseUrl/privacy.html";
+  static const String supportEmail = "contact@lokiwebvibe.com";
 
   static const String loginEndpoint = "$baseUrl/mobile_api/auth.php";
   static const String uiConfigEndpoint = "$baseUrl/mobile_api/get_ui_config.php";

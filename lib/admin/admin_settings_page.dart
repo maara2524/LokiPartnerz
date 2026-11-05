@@ -16,7 +16,11 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
   final _appVersionCtrl = TextEditingController();
   final _minVersionCtrl = TextEditingController();
   final _updateMessageCtrl = TextEditingController();
+  final _storeUrlCtrl = TextEditingController();
   final _apiBaseCtrl = TextEditingController();
+
+  String _versionPlatform = 'android';
+  Map<String, Map<String, dynamic>> _versions = {};
 
   bool _loading = true, _forceUpdate = false, _fcm = true, _meta = true;
   bool _leadLock = true, _autoRelease = true, _introVideo = true, _maint = false;
@@ -37,6 +41,7 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     _appVersionCtrl.dispose();
     _minVersionCtrl.dispose();
     _updateMessageCtrl.dispose();
+    _storeUrlCtrl.dispose();
     _apiBaseCtrl.dispose();
     super.dispose();
   }
@@ -120,17 +125,53 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
       decoration: BbmAdminTheme.cardDecoration,
       padding: const EdgeInsets.all(16),
       child: Column(children: [
+        Row(children: [
+          const Text('Platform', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: BbmAdminTheme.textPrimary)),
+          const SizedBox(width: 12),
+          DropdownButton<String>(
+            value: _versionPlatform,
+            items: const [
+              DropdownMenuItem(value: 'android', child: Text('Android')),
+              DropdownMenuItem(value: 'ios', child: Text('iOS')),
+            ],
+            onChanged: (value) {
+              if (value == null || value == _versionPlatform) return;
+              _switchVersionPlatform(value);
+            },
+          ),
+        ]),
+        const SizedBox(height: 8),
         AdminEditField(label: 'Current App Version', controller: _appVersionCtrl),
         const SizedBox(height: 12),
         AdminEditField(label: 'Minimum Required Version', controller: _minVersionCtrl),
         const SizedBox(height: 12),
         AdminEditField(label: 'Force Update Message', controller: _updateMessageCtrl, maxLines: 3),
+        const SizedBox(height: 12),
+        AdminEditField(
+          label: _versionPlatform == 'ios' ? 'App Store URL' : 'Play Store URL',
+          controller: _storeUrlCtrl,
+        ),
         const SizedBox(height: 14),
         _toggleRow('Force Update Required', _forceUpdate, (v) => setState(() => _forceUpdate = v)),
         const SizedBox(height: 14),
         AdminGradientButton(label: 'Save Version Config', icon: Icons.save_outlined, isLoading: _savingVersion, onTap: _saveVersion),
       ]),
     );
+  }
+
+  void _switchVersionPlatform(String platform) {
+    setState(() {
+      _versionPlatform = platform;
+      _applyVersion(_versions[platform] ?? const <String, dynamic>{});
+    });
+  }
+
+  void _applyVersion(Map<String, dynamic> version) {
+    _appVersionCtrl.text = '${version['latest_version'] ?? ''}';
+    _minVersionCtrl.text = '${version['minimum_version'] ?? ''}';
+    _updateMessageCtrl.text = '${version['update_message'] ?? ''}';
+    _storeUrlCtrl.text = '${version['store_url'] ?? version['playstore_url'] ?? ''}';
+    _forceUpdate = version['update_required'] == true;
   }
 
   Widget _togglesCard() {
@@ -429,16 +470,33 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
     }
     try {
       final data = await _api.fetchSettings();
-      final version = Map<String, dynamic>.from(data['version'] as Map);
+      final legacyVersion = Map<String, dynamic>.from(data['version'] as Map);
+      final versions = <String, Map<String, dynamic>>{};
+      final rawVersions = data['versions'];
+      if (rawVersions is Map) {
+        rawVersions.forEach((key, value) {
+          if (value is Map) {
+            versions[key.toString()] = Map<String, dynamic>.from(value);
+          }
+        });
+      }
+      if (versions.isEmpty) {
+        versions['android'] = legacyVersion;
+        if (data['version_ios'] is Map) {
+          versions['ios'] = Map<String, dynamic>.from(data['version_ios'] as Map);
+        }
+      }
       final toggles = Map<String, dynamic>.from(data['toggles'] as Map);
       final api = Map<String, dynamic>.from(data['api'] as Map);
       if (!mounted) return;
       setState(() {
-        _appVersionCtrl.text = '${version['latest_version'] ?? ''}';
-        _minVersionCtrl.text = '${version['minimum_version'] ?? ''}';
-        _updateMessageCtrl.text = '${version['update_message'] ?? ''}';
+        _versions = versions;
+        _applyVersion(
+          versions[_versionPlatform] ??
+              versions['android'] ??
+              const <String, dynamic>{},
+        );
         _apiBaseCtrl.text = '${api['base_url'] ?? ''}';
-        _forceUpdate = version['update_required'] == true;
         _fcm = toggles['fcm_enabled'] == true;
         _meta = toggles['meta_events_enabled'] == true;
         _leadLock = toggles['lead_lock_enabled'] == true;
@@ -457,9 +515,22 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 
   Future<void> _saveVersion() async {
     setState(() => _savingVersion = true);
+    final payload = {
+      'platform': _versionPlatform,
+      'latest_version': _appVersionCtrl.text.trim(),
+      'minimum_version': _minVersionCtrl.text.trim(),
+      'update_required': _forceUpdate,
+      'update_message': _updateMessageCtrl.text.trim(),
+      'store_url': _storeUrlCtrl.text.trim(),
+    };
     try {
-      await _api.updateVersion({'latest_version': _appVersionCtrl.text.trim(), 'minimum_version': _minVersionCtrl.text.trim(), 'update_required': _forceUpdate, 'update_message': _updateMessageCtrl.text.trim()});
-      if (mounted) _ok('Version config saved');
+      await _api.updateVersion(payload);
+      if (mounted) {
+        setState(() {
+          _versions[_versionPlatform] = Map<String, dynamic>.from(payload);
+        });
+        _ok('${_versionPlatform == 'ios' ? 'iOS' : 'Android'} version config saved');
+      }
     } catch (e) {
       if (mounted) _fail(e);
     } finally {

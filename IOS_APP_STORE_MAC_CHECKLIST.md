@@ -25,17 +25,26 @@ Use this when you move the project to a Mac for signing, device testing, and App
 ## App Store Connect
 
 - Create the app record with bundle ID `com.lwv.bridalbookermachine`.
-- Add Privacy Policy URL and Support URL.
+- Privacy Policy URL: `https://bbm.lokiwebvibe.com/privacy.html`.
+- Support URL: `https://bbm.lokiwebvibe.com/support.html` (upload `support.html` first).
 - Add screenshots for required iPhone/iPad sizes.
-- Add App Review demo login credentials.
+- Add App Review demo login credentials (username, not email).
 - Complete App Privacy details.
-- Confirm App Review compliance for the iOS website link before submission.
+- Confirm the iOS build has no purchase button, no website purchase link, and no sign-up entry.
 - Add the iOS App Store URL to the backend app version config after the app record exists.
+
+## Backend Before Submission
+
+- Upload the updated `mobile_api/check_app_version.php`, `delete_account.php`, `admin/settings.php`, and `admin/settings_update_version.php`.
+- Run `mobile_api/migrations/2026_11_05_add_ios_app_version.sql` on production.
+- Verify `check_app_version.php?platform=ios` returns HTTP 200.
+- Verify `delete_account.php` returns 200, not 404.
+- Verify `support.html` and `privacy.html` both return 200.
 
 ## Final Build
 
-- Test on a real iPhone.
-- Test login, registration, notifications, account deletion, and the iOS website subscription link.
+- Test on a real iPhone (and iPad if the app stays universal).
+- Test login, notifications, the companion subscription info card, account deletion, and the version check.
 - Archive from Xcode.
 - Upload to App Store Connect.
 - Submit TestFlight build for internal testing.

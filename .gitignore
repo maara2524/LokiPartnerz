@@ -85,6 +85,9 @@ app.*.map.json
 **/composer*.lock
 **/google-services.json
 **/GoogleService-Info.plist
+# The iOS Firebase plist is required by the Xcode project and is safe to commit
+# for a private app repo. Keep the Android one ignored as before.
+!ios/Runner/GoogleService-Info.plist
 
 # PHP/Composer dependencies and runtime files
 mobile_api/vendor/
@@ -101,6 +104,8 @@ composer.phar
 *.db
 *.sqlite
 *.sqlite3
+# Schema migrations are source code, not local data dumps.
+!mobile_api/migrations/*.sql
 
 # Release artifacts
 *.apk

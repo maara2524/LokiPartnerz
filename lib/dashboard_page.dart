@@ -10,6 +10,8 @@ import 'config/api_config.dart';
 import 'main.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'utils/notification_permission.dart';
+
 class DashboardPage extends StatefulWidget {
   final Function(int)? onNavigate;
 
@@ -111,12 +113,12 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _checkNotificationPermission() async {
-    final status = await Permission.notification.status;
+    final enabled = await areNotificationsEnabled();
 
     if (!mounted) return;
 
     setState(() {
-      _notificationsEnabled = status.isGranted;
+      _notificationsEnabled = enabled;
     });
   }
 

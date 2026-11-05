@@ -40,6 +40,8 @@ flutter_launcher_icons:
   image_path: assets/icons/Loki_Partnerz_Logo.png
   adaptive_icon_foreground: assets/icons/Loki_Partnerz_Logo.png
   adaptive_icon_background: "#FFFFFF"
+  # App Store validation rejects iOS icons that contain an alpha channel.
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
