@@ -419,13 +419,13 @@ TestFlight builds expire after 90 days.
 
 ```text
 Loki Partnerz is the iOS companion app for our lead-management service for
-makeup artists. The app lets existing subscribers sign in to view available
+makeup artists. The app lets existing customers sign in to view available
 leads, claim leads, manage their profile, and receive push notifications.
 
 The iOS app does not offer in-app purchases and does not contain links or calls
-to action to purchase a subscription outside the app. Subscriptions are managed
-by our web service. The demo account below has an active subscription so App
-Review can access all features.
+to action to purchase anything outside the app. Accounts are provisioned by
+Loki Partnerz for its customers. The demo account below has full access so App
+Review can use every feature.
 
 Demo account:
   Username: <demo-username>
@@ -436,9 +436,10 @@ Privacy policy: https://bbm.lokiwebvibe.com/privacy.html
 Support: https://bbm.lokiwebvibe.com/support.html / contact@lokiwebvibe.com
 ```
 
-> Be honest but do not volunteer marketing language about buying on the website.
-> If Apple asks how new users subscribe, explain the web service and be ready to
-> add StoreKit IAP.
+> Be honest if Apple asks how customers get accounts or how access is paid for.
+> Do not add a purchase link or a "subscribe" call to action. If Apple requires
+> in-app purchase, follow the StoreKit contingency instead of restoring the
+> external website link.
 
 ---
 
