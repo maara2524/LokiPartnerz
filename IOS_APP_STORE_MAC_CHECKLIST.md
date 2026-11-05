@@ -30,7 +30,7 @@ Use this when you move the project to a Mac for signing, device testing, and App
 - Add screenshots for required iPhone/iPad sizes.
 - Add App Review demo login credentials (username, not email).
 - Complete App Privacy details.
-- Confirm the iOS build has no purchase button, no website purchase link, and no sign-up entry.
+- Confirm the iOS build has no purchase button, no website purchase link, no subscription plans screen, and no sign-up entry.
 - Add the iOS App Store URL to the backend app version config after the app record exists.
 
 ## Backend Before Submission

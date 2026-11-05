@@ -804,7 +804,10 @@ class _SettingsPageState extends State<SettingsPage> {
                         _divider(),
                         _infoTile("Artist Level", artistLevel),
                         _divider(),
-                        _infoTile("Subscription Status", status),
+                        _infoTile(
+                          _isIOS ? "Account Status" : "Subscription Status",
+                          status,
+                        ),
                         _divider(),
                         _infoTile("Location", location),
                         _divider(),

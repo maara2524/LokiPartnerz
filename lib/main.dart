@@ -21,6 +21,7 @@ import 'splash_page.dart';
 // import 'lead_detail_page.dart';
 import 'new_lead_details.dart';
 import 'subscription.dart';
+import 'ios_account_status_page.dart';
 import 'leads_home_page.dart';
 import 'assign_artist_page.dart';
 import 'admin/admin_shell.dart';
@@ -290,8 +291,16 @@ class MyApp extends StatelessWidget {
         '/my_claims': (context) => const MyClaimsPage(),
         '/lead_detail': (context) => const LeadDetailPage(),
         '/login': (context) => const LoginPage(),
-        '/register': (context) => const RegisterPage(),
-        '/Subscription': (context) => const Level5SubscriptionPage(),
+        // iOS is a companion app for existing accounts. Registration and
+        // subscription screens are not part of the iOS experience.
+        '/register': (context) =>
+            !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
+            ? const LoginPage()
+            : const RegisterPage(),
+        '/Subscription': (context) =>
+            !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
+            ? const IosAccountStatusPage()
+            : const Level5SubscriptionPage(),
         '/assign_artist': (context) => const AssignArtistPage(),
         '/admin': (context) => const AdminShell(),
       },

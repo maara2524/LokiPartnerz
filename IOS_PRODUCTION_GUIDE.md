@@ -299,7 +299,7 @@ iOS.
 | Push | Permission prompt, token saved, foreground/background/terminated notification |
 | Leads | Available leads, claim, release, status updates |
 | Profile | Edit profile, validation, save |
-| Subscription page | iOS shows the companion information card, **no purchase button or website link** |
+| Account status | Inactive users see the neutral account-help page; **no subscription plans, prices, purchase button, or website link** |
 | Account deletion | Settings → Delete Account → confirm → returns to login; test with a disposable account |
 | PDF report | Generate and print/share a telecaller report |
 | Video | Wistia video plays inside the app (WKWebView) |
@@ -307,7 +307,8 @@ iOS.
 | iPad | Layout, orientation, keyboard, sheets, and print popover |
 | Offline | Airplane mode shows a friendly error, not a crash |
 
-Also confirm the app does not show a "Create account" link on iOS.
+Also confirm the app does not show a "Create account" link on iOS and that the
+registration route cannot open the registration form.
 
 ---
 
@@ -579,7 +580,10 @@ Apple transactions.
 - [ ] `support.html` and `privacy.html` are live.
 - [ ] No purchase button, website purchase link, or "subscribe" call to action
       in the iOS app.
-- [ ] Sign-up is hidden on iOS.
+- [ ] The iOS `/Subscription` route shows only the account-help page, with no
+      plans or prices.
+- [ ] Sign-up is hidden on iOS, and the registration route does not open the
+      registration form.
 - [ ] Demo account is active and can access the full app.
 - [ ] Screenshots show real app screens (not login/splash).
 - [ ] App Privacy answers completed.

@@ -30,7 +30,7 @@ Approximate state before this pass:
 | Play Store in-app update on iOS | Correctly guarded | Keep |
 | Account deletion | UI present; production endpoint missing | Deploy endpoint |
 | Version check | iOS row missing; `store_url` regression | Fixed in code + SQL |
-| iOS subscription | External website link | Replaced with companion-only UI |
+| iOS subscription | External website link | Removed on iOS; neutral account-help page only |
 | Build config | iOS 13.0 vs Firebase iOS 15.0 | Fixed |
 | App Store icon | 1024 px icon had alpha | Fixed |
 | Privacy manifest | Missing | Added |
@@ -62,8 +62,8 @@ Approximate state before this pass:
 | 7 | `check_app_version.php` lost the `store_url` field in a later "pulled_api" commit (`b662491`). | Restored `store_url` and made a missing iOS row return a non-blocking response instead of HTTP 500. |
 | 8 | No iOS row in `app_version_config`; production returns HTTP 500 for `platform=ios`. | Added a migration and admin support for an iOS version row. |
 | 9 | Production `mobile_api/delete_account.php` returns HTTP 404. The iOS delete button would fail. | Code exists; **must be uploaded to production**. |
-| 10 | iOS subscription page opened `lpz.lokiwebvibe.com`, an external purchase path. | Removed on iOS; replaced with a companion-app information card and support contact. |
-| 11 | iOS still offered self-registration, which leads to a paywall with no purchase option. | Sign-up is hidden on iOS. |
+| 10 | iOS subscription page opened `lpz.lokiwebvibe.com`, an external purchase path. | The iOS `/Subscription` route now renders a neutral account-help page with support and sign-out only; no plans, prices, or purchase UI. |
+| 11 | iOS still offered self-registration, which leads to a paywall with no purchase option. | Sign-up is hidden on iOS, and the `/register` route no longer opens the registration page on iOS. |
 | 12 | `dart:io` `Platform.isIOS` breaks the web target. | Replaced with `defaultTargetPlatform` checks. |
 
 ## Production checks performed
@@ -85,17 +85,20 @@ features and violates Guideline **3.1.1**. It was removed.
 
 The app is now a **companion app for existing subscribers**:
 
-- No purchase UI on iOS.
-- No external purchase link on iOS.
-- Sign-up is hidden on iOS.
+- No subscription screen on iOS: inactive accounts see a neutral account-help
+  page with support and sign-out.
+- No plans, prices, purchase UI, or external purchase link on iOS.
+- Sign-up is hidden, and the registration route is unavailable on iOS.
 - Existing subscribers sign in and use the app.
 - Support contact is available by email.
 
-This is the fastest viable route, but it is not risk-free. Guideline
-**3.1.3(b) (Multiplatform Services)** allows access to subscriptions acquired
-elsewhere only when those items are **also available as in-app purchases**.
-Apple may therefore reject a subscription-only companion app and ask for
-StoreKit IAP. Be prepared for that outcome.
+This removes the obvious Guideline **3.1.1** violation, but it does **not**
+eliminate Guideline **3.1.3(b) (Multiplatform Services)** risk. That rule allows
+access to subscriptions acquired elsewhere only when those items are **also
+available as in-app purchases**. Removing the subscription screen hides the
+purchase path from the UI; it does not change the fact that access still depends
+on a subscription purchased outside the app. Apple may therefore still reject
+the app and require StoreKit IAP. Be prepared for that outcome.
 
 Recommended contingency, if App Review rejects the companion-only model:
 

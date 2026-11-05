@@ -1,5 +1,6 @@
 ﻿import 'dart:convert';
 import 'meta_events.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,6 +36,12 @@ class _AvailableLeadsPageState extends State<AvailableLeadsPage> {
 
   Map<String, dynamic> uiConfig = {};
   bool uiLoaded = false;
+
+  bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  String get _inactiveAccountMessage => _isIOS
+      ? "Your account is not active. Please contact support to continue."
+      : "Your subscription is inactive. Renew or upgrade to claim leads.";
 
   bool _containsAny(String source, List<String> needles) {
     final lower = source.toLowerCase();
@@ -272,9 +279,9 @@ class _AvailableLeadsPageState extends State<AvailableLeadsPage> {
           if (!mounted) return;
           setState(() {
             errorType = AvailableLeadsErrorType.unknown;
-            _error =
-                errorMessage ??
-                "Your subscription is inactive. Renew or upgrade to claim leads.";
+            _error = _isIOS
+                ? _inactiveAccountMessage
+                : (errorMessage ?? _inactiveAccountMessage);
             _leads = [];
             _loading = false;
           });
@@ -306,9 +313,9 @@ class _AvailableLeadsPageState extends State<AvailableLeadsPage> {
           await _markUserInactiveLocally();
           setState(() {
             errorType = AvailableLeadsErrorType.unknown;
-            _error =
-                errorMessage ??
-                "Your subscription is inactive. Renew or upgrade to claim leads.";
+            _error = _isIOS
+                ? _inactiveAccountMessage
+                : (errorMessage ?? _inactiveAccountMessage);
             _leads = [];
             _loading = false;
           });
