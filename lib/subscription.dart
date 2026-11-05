@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'config/api_config.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
@@ -29,6 +30,12 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
   int? selectedPlanId;
   int? payableAmount;
   String? currency;
+  late final InAppPurchase _inAppPurchase;
+  StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
+  final Map<String, ProductDetails> _appleProducts = {};
+  bool _storeKitLoading = false;
+  bool _storeKitAvailable = false;
+  String? _storeKitError;
 
   List<dynamic> subscriptionPlans = [];
   Map<String, dynamic>? basicPlan;
@@ -187,6 +194,7 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
 
       if (data["plans"] != null && data["plans"] is List) {
         setState(() {
+          subscriptionPlans = List<dynamic>.from(data["plans"]);
           for (var plan in data["plans"]) {
             if (plan["slug"] == "basic") {
               basicPlan = plan;
@@ -199,9 +207,336 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
             }
           }
         });
+        if (_isIOS) {
+          await _loadAppleProducts();
+        }
       }
     } catch (e) {
       debugPrint("Debug : fetchSubscriptionPlans error: $e");
+      if (mounted && _isIOS) {
+        setState(() {
+          _storeKitError = "Subscription plans could not be loaded.";
+        });
+      }
+    }
+  }
+
+  Future<void> _loadAppleProducts() async {
+    final productIds = subscriptionPlans
+        .whereType<Map<String, dynamic>>()
+        .map((plan) => plan["apple_product_id"]?.toString() ?? "")
+        .where((id) => id.isNotEmpty)
+        .toSet();
+
+    if (productIds.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _storeKitLoading = false;
+          _storeKitError = "Plans are not configured in the App Store yet.";
+        });
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _storeKitLoading = true;
+        _storeKitError = null;
+      });
+    }
+
+    try {
+      final available = await _inAppPurchase.isAvailable();
+      if (!available) {
+        throw StateError("The App Store is unavailable on this device.");
+      }
+
+      final response = await _inAppPurchase.queryProductDetails(productIds);
+      if (response.error != null) {
+        throw StateError(response.error!.message);
+      }
+      if (response.productDetails.isEmpty) {
+        throw StateError("No matching subscription products were found.");
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _storeKitAvailable = true;
+        _appleProducts
+          ..clear()
+          ..addEntries(
+            response.productDetails.map(
+              (product) => MapEntry(product.id, product),
+            ),
+          );
+        _storeKitError = response.notFoundIDs.isEmpty
+            ? null
+            : "Some plans are not available in the App Store.";
+      });
+    } catch (error) {
+      debugPrint("StoreKit product query failed: $error");
+      if (mounted) {
+        setState(() {
+          _storeKitAvailable = false;
+          _storeKitError = error.toString().replaceFirst("Bad state: ", "");
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _storeKitLoading = false);
+      }
+    }
+  }
+
+  Widget _planPrice(String planKey, Map<String, dynamic>? plan) {
+    if (!_isIOS) return priceWithOffer(planKey);
+
+    final productId = plan?["apple_product_id"]?.toString();
+    final product = productId == null ? null : _appleProducts[productId];
+    if (product != null) {
+      return Text(
+        product.price,
+        style: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.purpleAccent,
+        ),
+      );
+    }
+
+    return Text(
+      _storeKitLoading ? "Loading App Store price..." : "Unavailable",
+      textAlign: TextAlign.center,
+      style: const TextStyle(fontSize: 14, color: Colors.black54),
+    );
+  }
+
+  String _planDuration(Map<String, dynamic>? plan, String configuredDuration) {
+    if (!_isIOS) return configuredDuration;
+
+    final durationDays = int.tryParse(plan?["duration_days"]?.toString() ?? "");
+    if (durationDays == null || durationDays <= 0) return configuredDuration;
+    return "$durationDays days of access";
+  }
+
+  bool _canBuyApplePlan(Map<String, dynamic>? plan) {
+    final productId = plan?["apple_product_id"]?.toString();
+    return !_isPaying &&
+        _storeKitAvailable &&
+        productId != null &&
+        _appleProducts.containsKey(productId);
+  }
+
+  Future<void> _purchasePlan(Map<String, dynamic> plan) async {
+    if (_isIOS) {
+      await _buyApplePlan(plan);
+    } else {
+      await createRazorpayOrder(plan);
+    }
+  }
+
+  Future<void> _buyApplePlan(Map<String, dynamic> plan) async {
+    if (_isPaying) return;
+
+    final productId = plan["apple_product_id"]?.toString();
+    final product = productId == null ? null : _appleProducts[productId];
+    if (product == null || !_storeKitAvailable) {
+      _showErrorDialog(
+        _storeKitError ??
+            "This plan is not currently available in the App Store.",
+      );
+      return;
+    }
+
+    setState(() => _isPaying = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if ((prefs.getString("auth_token") ?? "").isEmpty) {
+        throw StateError("Please sign in again before purchasing.");
+      }
+
+      final started = await _inAppPurchase.buyNonConsumable(
+        purchaseParam: PurchaseParam(productDetails: product),
+      );
+      if (!started && mounted) {
+        setState(() => _isPaying = false);
+        _showErrorDialog(
+          "The App Store could not start this purchase. Try again.",
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isPaying = false);
+      _showErrorDialog(error.toString().replaceFirst("Bad state: ", ""));
+    }
+  }
+
+  Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
+    for (final purchase in purchases) {
+      switch (purchase.status) {
+        case PurchaseStatus.pending:
+          if (mounted) setState(() => _isPaying = true);
+          break;
+        case PurchaseStatus.purchased:
+        case PurchaseStatus.restored:
+          await _verifyApplePurchase(purchase);
+          break;
+        case PurchaseStatus.error:
+          if (mounted) {
+            setState(() => _isPaying = false);
+            _showErrorDialog(
+              purchase.error?.message ?? "The purchase could not be completed.",
+            );
+          }
+          break;
+        case PurchaseStatus.canceled:
+          if (mounted) setState(() => _isPaying = false);
+          break;
+      }
+    }
+  }
+
+  Future<void> _verifyApplePurchase(PurchaseDetails purchase) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("auth_token");
+      if (token == null || token.isEmpty) {
+        throw StateError(
+          "Sign in to the Loki Partnerz account for this purchase.",
+        );
+      }
+
+      final response = await http
+          .post(
+            Uri.parse(ApiConfig.verifyApplePurchaseEndpoint),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              "token": token,
+              "product_id": purchase.productID,
+              "signed_transaction_info":
+                  purchase.verificationData.serverVerificationData,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) {
+        throw StateError("The purchase verification response was invalid.");
+      }
+      if (response.statusCode != 200 || decoded["success"] != true) {
+        final errorCode = decoded["error_code"]?.toString();
+        if (response.statusCode == 409 &&
+            const {
+              "TRANSACTION_EXPIRED",
+              "TRANSACTION_REVOKED",
+              "TRANSACTION_ALREADY_LINKED",
+            }.contains(errorCode) &&
+            purchase.pendingCompletePurchase) {
+          await _inAppPurchase.completePurchase(purchase);
+        }
+        throw StateError(
+          decoded["message"]?.toString() ??
+              "Apple could not verify this purchase. Please contact support.",
+        );
+      }
+
+      if (decoded["has_active_subscription"] == false) {
+        if (purchase.pendingCompletePurchase) {
+          await _inAppPurchase.completePurchase(purchase);
+        }
+        if (mounted) {
+          setState(() => _isPaying = false);
+          _showErrorDialog(
+            "This purchase has already ended. Choose a plan to activate access again.",
+          );
+        }
+        return;
+      }
+
+      final level = int.tryParse(decoded["level"]?.toString() ?? "");
+      if (level != null) await prefs.setInt("level", level);
+      final status = decoded["status"]?.toString();
+      if (status != null) await prefs.setString("status", status);
+
+      if (purchase.pendingCompletePurchase) {
+        await _inAppPurchase.completePurchase(purchase);
+      }
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+    } catch (error) {
+      debugPrint("StoreKit transaction verification failed: $error");
+      if (!mounted) return;
+      setState(() => _isPaying = false);
+      _showErrorDialog(
+        "${error.toString().replaceFirst("Bad state: ", "")}\n\n"
+        "Your purchase has not been acknowledged by the server yet. "
+        "Please keep the app open or try again later.",
+      );
+    }
+  }
+
+  Future<void> _restoreAppleAccount() async {
+    if (_isPaying) return;
+    setState(() => _isPaying = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("auth_token");
+      if (token == null || token.isEmpty) {
+        throw StateError(
+          "Sign in to the Loki Partnerz account you used before.",
+        );
+      }
+
+      final response = await http
+          .post(
+            Uri.parse(ApiConfig.mySubscriptionEndpoint),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({"token": token}),
+          )
+          .timeout(const Duration(seconds: 20));
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic> ||
+          response.statusCode != 200 ||
+          decoded["success"] != true) {
+        throw StateError(
+          decoded is Map<String, dynamic>
+              ? decoded["error"]?.toString() ??
+                    "Your account access could not be checked."
+              : "The server returned an invalid response.",
+        );
+      }
+
+      final hasActiveSubscription = decoded["has_active_subscription"] == true;
+      final user = decoded["user"];
+      if (user is Map<String, dynamic>) {
+        final level = int.tryParse(user["level"]?.toString() ?? "");
+        if (level != null) await prefs.setInt("level", level);
+        final status = user["status"]?.toString();
+        if (status != null) await prefs.setString("status", status);
+      }
+
+      if (!mounted) return;
+      if (hasActiveSubscription) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MainShell()),
+        );
+      } else {
+        setState(() => _isPaying = false);
+        _showDialog(
+          title: "No active access found",
+          message:
+              "Sign in with the Loki Partnerz account used for the purchase, or choose a plan to continue.",
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isPaying = false);
+      _showErrorDialog(error.toString().replaceFirst("Bad state: ", ""));
     }
   }
 
@@ -213,6 +548,21 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
   void initState() {
     super.initState();
 
+    if (_isIOS) {
+      _inAppPurchase = InAppPurchase.instance;
+      _purchaseSubscription = _inAppPurchase.purchaseStream.listen(
+        _handlePurchaseUpdates,
+        onError: (Object error) {
+          debugPrint("StoreKit purchase stream error: $error");
+          if (mounted) {
+            setState(() => _isPaying = false);
+            _showErrorDialog(
+              "The App Store could not report the purchase status.",
+            );
+          }
+        },
+      );
+    }
     fetchSubscriptionPlans();
     _fetchSubscriptionVideo();
 
@@ -233,6 +583,7 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _paymentTimeout?.cancel();
+    _purchaseSubscription?.cancel();
     _razorpay?.clear();
     super.dispose();
   }
@@ -246,11 +597,7 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
 
   Future<void> createRazorpayOrder(Map<String, dynamic> plan) async {
     if (_isIOS) {
-      _showDialog(
-        title: "Subscription",
-        message:
-            "Your subscription is managed outside the app. Please sign in with the account you subscribed with, or contact support for help.",
-      );
+      await _buyApplePlan(plan);
       return;
     }
 
@@ -328,10 +675,7 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
     );
 
     try {
-      final opened = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
 
       if (!opened && mounted) {
         _showDialog(
@@ -1290,48 +1634,31 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
 
                     const SizedBox(height: 14),
 
-                    if (_isIOS)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.purpleAccent.withValues(alpha: 0.35),
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            const Icon(
-                              Icons.info_outline,
-                              color: Colors.purpleAccent,
-                              size: 28,
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              "Subscription managed outside the app",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.purpleAccent,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              "Access is linked to the Loki Partnerz account you used when you subscribed. If your account is inactive, sign in with the same account or contact support for help.",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     if (_isIOS) ...[
                       const SizedBox(height: 14),
+                      _commonActionCard(
+                        icon: Icons.restore,
+                        title: "Restore account access",
+                        subtitle:
+                            "Check the active fixed-term plan on your Loki Partnerz account",
+                        outlined: true,
+                        onTap: _restoreAppleAccount,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Apple purchases are fixed-term and do not renew automatically. Access is connected to your Loki Partnerz account; choose a plan again when it expires.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: Colors.black54),
+                      ),
+                      if (_storeKitError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _storeKitError!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.redAccent),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
                       _commonActionCard(
                         icon: Icons.support_agent,
                         title: "Contact Support",
@@ -1342,62 +1669,74 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
                     ],
 
                     const SizedBox(height: 14),
-                    if (!_isIOS) ...[
-                      // _buildPlanCard(
-                      //   title: uiConfig["trial_title"] ?? "",
-                      //   priceWidget: priceWithOffer("trial"),
-                      //   duration: uiConfig["trial_duration"] ?? "",
-                      //   points: getPlanPoints("trial"),
-                      //   buttonText: "Start Trial Plan",
-                      //   onTap: () {
-                      //     if (trialPlan == null) {
-                      //       ScaffoldMessenger.of(context).showSnackBar(
-                      //         const SnackBar(
-                      //           content: Text("Loading plans, please wait..."),
-                      //         ),
-                      //       );
-                      //       return;
-                      //     }
-                      //     createRazorpayOrder(trialPlan!);
-                      //   },
-                      // ),
-                      _buildPlanCard(
-                        title: uiConfig["basic_title"] ?? "",
-                        priceWidget: priceWithOffer("basic"),
-                        duration: uiConfig["basic_duration"] ?? "",
-                        points: getPlanPoints("basic"),
-                        buttonText: "Start Basic Plan",
-                        onTap: () {
-                          if (basicPlan == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Loading plans, please wait..."),
-                              ),
-                            );
-                            return;
-                          }
-                          createRazorpayOrder(basicPlan!);
-                        },
+                    // _buildPlanCard(
+                    //   title: uiConfig["trial_title"] ?? "",
+                    //   priceWidget: _planPrice("trial", trialPlan),
+                    //   duration: uiConfig["trial_duration"] ?? "",
+                    //   points: getPlanPoints("trial"),
+                    //   buttonText: "Start Trial Plan",
+                    //   onTap: trialPlan == null
+                    //       ? null
+                    //       : () => _purchasePlan(trialPlan!),
+                    // ),
+                    _buildPlanCard(
+                      title: uiConfig["basic_title"] ?? "",
+                      priceWidget: _planPrice("basic", basicPlan),
+                      duration: _planDuration(
+                        basicPlan,
+                        uiConfig["basic_duration"] ?? "",
                       ),
-                      _buildPlanCard(
-                        title: uiConfig["extended_title"] ?? "",
-                        priceWidget: priceWithOffer("extended"),
-                        duration:
-                            "${uiConfig["extended_duration"]}\n${uiConfig["extended_save_text"]}",
-                        points: getPlanPoints("extended"),
-                        buttonText: "Choose Extended Plan",
-                        popular: true,
-                        onTap: () {
-                          if (extendedPlan == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Loading plans, please wait..."),
+                      points: getPlanPoints("basic"),
+                      buttonText: _isIOS
+                          ? "Buy with Apple"
+                          : "Start Basic Plan",
+                      onTap:
+                          basicPlan == null ||
+                              (_isIOS && !_canBuyApplePlan(basicPlan))
+                          ? null
+                          : () => _purchasePlan(basicPlan!),
+                    ),
+                    _buildPlanCard(
+                      title: uiConfig["extended_title"] ?? "",
+                      priceWidget: _planPrice("extended", extendedPlan),
+                      duration: _planDuration(
+                        extendedPlan,
+                        "${uiConfig["extended_duration"]}\n${uiConfig["extended_save_text"]}",
+                      ),
+                      points: getPlanPoints("extended"),
+                      buttonText: _isIOS
+                          ? "Buy with Apple"
+                          : "Choose Extended Plan",
+                      popular: true,
+                      onTap:
+                          extendedPlan == null ||
+                              (_isIOS && !_canBuyApplePlan(extendedPlan))
+                          ? null
+                          : () => _purchasePlan(extendedPlan!),
+                    ),
+                    if (_isIOS) ...[
+                      const SizedBox(height: 16),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 16,
+                        children: [
+                          TextButton(
+                            onPressed: () => launchUrl(
+                              Uri.parse(ApiConfig.privacyPolicyUrl),
+                              mode: LaunchMode.externalApplication,
+                            ),
+                            child: const Text("Privacy Policy"),
+                          ),
+                          TextButton(
+                            onPressed: () => launchUrl(
+                              Uri.parse(
+                                "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
                               ),
-                            );
-                            return;
-                          }
-                          createRazorpayOrder(extendedPlan!);
-                        },
+                              mode: LaunchMode.externalApplication,
+                            ),
+                            child: const Text("Terms of Use"),
+                          ),
+                        ],
                       ),
                     ],
                     // _buildPlanCard(

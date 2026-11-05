@@ -40,7 +40,7 @@ class _AvailableLeadsPageState extends State<AvailableLeadsPage> {
   bool get _isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   String get _inactiveAccountMessage => _isIOS
-      ? "Your account is not active. Please contact support to continue."
+      ? "Your subscription is inactive. Choose a plan to continue claiming leads."
       : "Your subscription is inactive. Renew or upgrade to claim leads.";
 
   bool _containsAny(String source, List<String> needles) {
@@ -403,6 +403,17 @@ class _AvailableLeadsPageState extends State<AvailableLeadsPage> {
                     },
                     icon: const Icon(Icons.login),
                     label: const Text("Login"),
+                  ),
+
+                if (_isIOS && errorType == AvailableLeadsErrorType.unknown)
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      "/Subscription",
+                      (_) => false,
+                    ),
+                    icon: const Icon(Icons.shopping_bag_outlined),
+                    label: const Text("View Plans"),
                   ),
               ],
             ),

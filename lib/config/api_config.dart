@@ -2,7 +2,10 @@
 
 class ApiConfig {
 
-  static const String baseUrl = "https://bbm.lokiwebvibe.com"; 
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: "https://bbm.lokiwebvibe.com",
+  );
   static const String privacyPolicyUrl = "$baseUrl/privacy.html";
   static const String supportEmail = "contact@lokiwebvibe.com";
 
@@ -11,6 +14,8 @@ class ApiConfig {
   static const String getSubscriptionPlansEndpoint = "$baseUrl/mobile_api/subscriptions/get_subscription_plans.php";
   static const String confirmRazorpayPaymentEndpoint = "$baseUrl/mobile_api/subscriptions/confirm_razorpay_payment.php";
   static const String createRazorpayOrderEndpoint = "$baseUrl/mobile_api/subscriptions/create_order.php";
+  static const String verifyApplePurchaseEndpoint = "$baseUrl/mobile_api/subscriptions/verify_apple_purchase.php";
+  static const String mySubscriptionEndpoint = "$baseUrl/mobile_api/subscriptions/get_my_subscription.php";
   static const String callbackEndpoint = "$baseUrl/mobile_api/payment_callback.php";
   static const String tutorialVideosEndpoint = "$baseUrl/mobile_api/tutorial_videos.php";
   static const String subscriptionIntroVideoEndpoint = "$baseUrl/mobile_api/subscription-intro-video.php";

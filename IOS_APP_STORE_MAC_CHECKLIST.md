@@ -30,21 +30,33 @@ Use this when you move the project to a Mac for signing, device testing, and App
 - Add screenshots for required iPhone/iPad sizes.
 - Add App Review demo login credentials (username, not email).
 - Complete App Privacy details.
-- Confirm the iOS build has no purchase button, no website purchase link, no subscription plans screen, and no sign-up entry.
+- Create Basic and Extended Basic as Non-Renewing Subscription products. Match
+  their product IDs to the backend migration and set localized App Store prices.
+- Complete the Paid Apps agreement, tax, and banking setup; enroll in the App
+  Store Small Business Program if eligible.
+- Confirm iOS uses StoreKit for plan purchases and has no Razorpay or external
+  payment link for digital access.
 - Add the iOS App Store URL to the backend app version config after the app record exists.
 
 ## Backend Before Submission
 
 - Upload the updated `mobile_api/check_app_version.php`, `delete_account.php`, `admin/settings.php`, and `admin/settings_update_version.php`.
 - Run `mobile_api/migrations/2026_11_05_add_ios_app_version.sql` on production.
+- Run `mobile_api/migrations/2026_11_06_add_apple_iap.sql` once, after a database backup.
+- Upload `subscriptions/get_subscription_plans.php`, `subscriptions/verify_apple_purchase.php`, `subscriptions/get_my_subscription.php`, and the updated `claim_leads.php`.
+- Leave `APPLE_IAP_ALLOWED_ENVIRONMENT` at its default `Production` on the production server.
 - Verify `check_app_version.php?platform=ios` returns HTTP 200.
 - Verify `delete_account.php` returns 200, not 404.
+- Test transaction verification against Sandbox on a separate staging backend.
 - Verify `support.html` and `privacy.html` both return 200.
 
 ## Final Build
 
-- Test on a real iPhone (and iPad if the app stays universal).
-- Test login, notifications, the companion subscription info card, account deletion, and the version check.
+- Test registration, login, plan display, StoreKit sandbox purchase, account
+  restore, notifications, deletion, printing, and video on the iOS Simulator or
+  TestFlight.
+- Validate push notifications on a real iPhone before release; simulator push
+  behavior does not replace APNs testing.
 - Archive from Xcode.
 - Upload to App Store Connect.
 - Submit TestFlight build for internal testing.

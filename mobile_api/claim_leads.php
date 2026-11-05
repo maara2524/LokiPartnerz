@@ -69,6 +69,7 @@ try {
         FROM subscription_history
         WHERE user_id = ?
           AND status = 'active'
+          AND end_date > NOW()
         ORDER BY start_date DESC, id DESC
         LIMIT 1
     ");
@@ -76,6 +77,31 @@ try {
     $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$subscription) {
+        // Close subscriptions whose paid period has elapsed and demote the
+        // artist, so web/Android/iOS all enforce the same expiry.
+        $expiredStmt = $pdo->prepare("
+            SELECT id FROM subscription_history
+            WHERE user_id = ? AND status = 'active' AND end_date <= NOW()
+            LIMIT 1
+        ");
+        $expiredStmt->execute([$userId]);
+
+        if ($expiredStmt->fetchColumn()) {
+            $pdo->prepare("
+                UPDATE subscription_history
+                SET status = 'expired'
+                WHERE user_id = ? AND status = 'active' AND end_date <= NOW()
+            ")->execute([$userId]);
+
+            $pdo->prepare("
+                UPDATE users SET status = 'inactive', level = 5 WHERE id = ?
+            ")->execute([$userId]);
+
+            http_response_code(403);
+            echo json_encode(['error' => 'Subscription expired']);
+            exit();
+        }
+
         http_response_code(403);
         echo json_encode(['error' => 'No active subscription']);
         exit();

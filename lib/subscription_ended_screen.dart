@@ -24,9 +24,9 @@ class SubscriptionEndedScreen extends StatelessWidget {
           icon: Icons.lock_outline,
           title: _isIOS ? "Lead limit reached" : "Subscription Ended",
           message: _isIOS
-              ? "You have reached the lead limit for your account. Contact support to continue claiming leads."
+              ? "You have reached the lead limit for your account. Choose a plan to continue claiming leads."
               : "You have reached your maximum lead claim limit for this plan. Please upgrade or renew your subscription to continue claiming leads.",
-          buttonText: _isIOS ? "Contact Support" : "View Subscription Plans",
+          buttonText: _isIOS ? "View Plans" : "View Subscription Plans",
           onPressed: () => _goToPlans(context),
         ),
       ),

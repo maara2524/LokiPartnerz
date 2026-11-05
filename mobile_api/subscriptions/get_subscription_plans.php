@@ -1,6 +1,7 @@
 <?php
 date_default_timezone_set('Asia/Kolkata');
 header("Content-Type: application/json");
+header('Access-Control-Allow-Origin: *');
 
 require __DIR__ . "/../../app/config/database.php";
 
@@ -11,9 +12,11 @@ $pdo = new PDO(
 );
 
 $stmt = $pdo->query("
-  SELECT id, slug, name, price_integer, currency, description, artist_level
+  SELECT id, slug, name, price_integer, currency, description,
+         artist_level, duration_days, apple_product_id
   FROM subscription_plans
   WHERE active = 1
+  ORDER BY artist_level ASC, id ASC
 ");
 
 echo json_encode([

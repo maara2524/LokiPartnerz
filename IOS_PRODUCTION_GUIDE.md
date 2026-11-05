@@ -4,13 +4,13 @@ This is the end-to-end runbook for taking the Flutter app from this Windows
 repository to a live App Store release.
 
 Read [IOS_READINESS_AUDIT.md](IOS_READINESS_AUDIT.md) first for the audit and
-the reasoning behind the current iOS approach.
+the current fixed-term StoreKit approach.
 
 **Current facts**
 
 | Item | Value |
 |---|---|
-| Flutter version | `3.2.15+43` |
+| App version | `3.2.15+43` |
 | Bundle ID | `com.lwv.bridalbookermachine` |
 | Display name | `Loki Partnerz` |
 | Minimum iOS | `15.0` |
@@ -21,10 +21,9 @@ the reasoning behind the current iOS approach.
 | Privacy policy | `https://bbm.lokiwebvibe.com/privacy.html` |
 | Support page | `https://bbm.lokiwebvibe.com/support.html` (upload `support.html`) |
 
-> The iOS app is a **companion app for existing subscribers**. Do not add a
-> "Subscribe", "Buy", "Upgrade", or website-purchase link to the iOS build.
-> That is an App Store rejection under Guideline 3.1.1. If Apple later requires
-> in-app purchase, follow the StoreKit contingency in the audit.
+> iOS uses StoreKit for the same fixed-term digital plans sold on Android.
+> Never direct iOS users to Razorpay or a website checkout for these plans.
+> The Apple product price and term shown in the app must match App Store Connect.
 
 ---
 
@@ -38,13 +37,28 @@ You need:
 - [ ] Flutter 3.47.x (or the version that built `3.2.15+43`).
 - [ ] An Apple Developer Program membership (paid, individual or organization).
 - [ ] Access to App Store Connect with the Admin or App Manager role.
+- [ ] Paid Apps agreement accepted, with banking and tax details completed.
+- [ ] Apply to the App Store Small Business Program if eligible (current program
+      details: <https://developer.apple.com/app-store/small-business-program/>).
 - [ ] Access to the Firebase project `lead-management-app-74c44`.
 - [ ] SSH/HTTPS access to this Git repository.
-- [ ] A real iPhone for testing. Push notifications do not work reliably on the
-      simulator.
+- [ ] Access to an iPhone for a final push-notification check. You can build and
+      test the main app and StoreKit purchase flow in the iOS Simulator; push
+      validation needs a physical device.
 
 > An organization account needs a D-U-N-S number. Start enrollment early; it can
 > take several days.
+
+### If you are on Windows and only have remote Mac access
+
+You do not need to own a Mac to publish, but the Xcode archive/signing step must
+run on macOS. Push the branch to your private GitHub repository, then clone it
+onto the remote Mac, or use VS Code Remote SSH if your Mac administrator has
+enabled it. Open the repository on the Mac and use the macOS Terminal/Xcode
+there. The iOS Simulator is suitable for UI and StoreKit sandbox testing; ask a
+friend or tester with an iPhone to confirm real push notifications before
+release. Do not send Apple account passwords, signing keys, or APNs keys in chat
+or commit them to the repository.
 
 ---
 
@@ -227,6 +241,10 @@ mobile_api/check_app_version.php
 mobile_api/delete_account.php
 mobile_api/admin/settings.php
 mobile_api/admin/settings_update_version.php
+mobile_api/subscriptions/get_subscription_plans.php
+mobile_api/subscriptions/verify_apple_purchase.php
+mobile_api/subscriptions/get_my_subscription.php
+mobile_api/claim_leads.php
 ```
 
 `delete_account.php` currently returns **404** in production, so the in-app
@@ -244,7 +262,47 @@ mobile_api/migrations/2026_11_05_add_ios_app_version.sql
 This inserts an `ios` row into `app_version_config`. Until it exists, the updated
 `check_app_version.php` returns a non-blocking response instead of HTTP 500.
 
-### 5.3 Verify
+### 5.3 Configure StoreKit plans
+
+Back up the production database, then run
+`mobile_api/migrations/2026_11_06_add_apple_iap.sql` once. Confirm that the
+active `basic` and `extended_basic` plan rows have the correct durations and
+product IDs.
+
+In App Store Connect, create **Non-Renewing Subscription** products with these
+exact IDs:
+
+```text
+com.lwv.bridalbookermachine.basic
+com.lwv.bridalbookermachine.extended
+```
+
+Only Basic and Extended Basic are currently shown in the Android purchase
+workflow; trial and admin test plans are not mapped to Apple products. Product
+type cannot be changed after creation. Set localized product prices in App
+Store Connect; the iOS app reads the StoreKit price rather than the Android/web
+price setting.
+
+The verifier accepts `Production` transactions by default. For end-to-end
+Sandbox testing, use a separate staging backend/database and set
+`APPLE_IAP_ALLOWED_ENVIRONMENT=Sandbox` there. Build the TestFlight test app
+with that staging URL:
+
+```bash
+flutter build ipa --release \
+  --dart-define=API_BASE_URL=https://<your-staging-host>
+```
+
+Never enable Sandbox transactions on the production endpoint, and do not submit
+the staging-configured build for release.
+
+The backend validates the signed transaction, checks bundle ID/product mapping,
+prevents transaction reuse across accounts, and applies the configured fixed
+term once. Account recovery is done by signing in to the same Loki Partnerz
+account and using **Restore account access**. Do not rely on StoreKit restore
+behavior for non-renewing products.
+
+### 5.4 Verify
 
 ```bash
 curl "https://bbm.lokiwebvibe.com/mobile_api/check_app_version.php?version=3.2.15&platform=ios"
@@ -267,7 +325,7 @@ curl -X POST "https://bbm.lokiwebvibe.com/mobile_api/delete_account.php" \
 
 Expected: `{"success":true,"message":"Account deleted successfully"}`.
 
-### 5.4 Upload the support page
+### 5.5 Upload the support page
 
 Upload `support.html` to the web root so this URL works:
 
@@ -299,7 +357,11 @@ iOS.
 | Push | Permission prompt, token saved, foreground/background/terminated notification |
 | Leads | Available leads, claim, release, status updates |
 | Profile | Edit profile, validation, save |
-| Account status | Inactive users see the neutral account-help page; **no subscription plans, prices, purchase button, or website link** |
+| Registration | Create an account on iOS; registration completes at the StoreKit plans screen |
+| StoreKit | Sandbox purchase for each product; localized prices match App Store Connect and backend grants the configured fixed term |
+| Restore access | Restore access while signed into an account with an active plan; expired/replayed purchases do not extend access |
+| Payment interruption | Pending, cancelled, failed, offline verification, and retry behavior |
+| Subscription navigation | Inactive login and registration reach the same plans workflow as Android; active login reaches the main app |
 | Account deletion | Settings → Delete Account → confirm → returns to login; test with a disposable account |
 | PDF report | Generate and print/share a telecaller report |
 | Video | Wistia video plays inside the app (WKWebView) |
@@ -307,8 +369,10 @@ iOS.
 | iPad | Layout, orientation, keyboard, sheets, and print popover |
 | Offline | Airplane mode shows a friendly error, not a crash |
 
-Also confirm the app does not show a "Create account" link on iOS and that the
-registration route cannot open the registration form.
+For IAP testing, use the iOS Simulator with a StoreKit configuration or a
+TestFlight build with a Sandbox tester. A real iPhone is not required for every
+purchase-flow test. Simulator testing does not validate push delivery; borrow a
+physical iPhone or ask a tester to validate APNs/FCM before release.
 
 ---
 
@@ -335,11 +399,22 @@ App Store Connect → **My Apps → + → New App**:
   mature content is usually 4+ or 12+.
 - **Made for Kids:** No.
 
-### 7.3 Pricing
+### 7.3 Pricing and in-app products
 
 - **Price:** Free.
-- The iOS app does not sell subscriptions. Do not configure in-app purchases for
-  this companion-only release.
+- In **Features → In-App Purchases**, create and submit the Basic and Extended
+  Basic non-renewing subscription products. Configure product availability and
+  localized price tiers, matching the identifiers in the backend migration.
+- Submit the products with the first app version and provide the product
+  screenshots and review details App Store Connect requests.
+- State clearly that access is for a fixed duration and does not automatically
+  renew. The app displays Apple's localized price and the plan duration.
+- Complete the Paid Apps agreement, tax forms, and banking before expecting
+  purchases to work.
+- Enroll in the Small Business Program if eligible. Apple's current program
+  offers a 15% commission for qualifying developers; eligibility, associated
+  accounts, and current Apple terms apply. Do not promise a rate until Apple
+  confirms enrollment.
 
 ### 7.4 App Privacy
 
@@ -382,7 +457,11 @@ retest. Apple encourages iPad support, but iPhone-only apps are allowed.
 - **Keywords:** lead management, makeup artist, bridal, bookings, CRM.
 - **Support URL:** `https://bbm.lokiwebvibe.com/support.html`.
 - **Privacy Policy URL:** `https://bbm.lokiwebvibe.com/privacy.html`.
-- **Marketing URL:** optional; `https://lpz.lokiwebvibe.com/` works.
+- **Marketing URL:** optional. Leave blank unless you have a landing page that
+  does not direct iOS users to an external payment method for digital plans.
+
+Do not use the marketing URL as an in-app payment link or steer iOS customers to
+external payment for digital plan access.
 
 ---
 
@@ -393,7 +472,8 @@ retest. Apple encourages iPad support, but iPhone-only apps are allowed.
 3. In Organizer, **Distribute App → App Store Connect → Upload**.
 4. Wait for processing in App Store Connect → TestFlight.
 5. Add internal testers first. Internal testing does not require Beta App Review.
-6. Test push, login, deletion, printing, and video on a real device.
+6. Test push, login, deletion, printing, and video on a real device. Test StoreKit
+   purchases with a Sandbox tester.
 7. For external testers, submit the build for Beta App Review.
 
 TestFlight builds expire after 90 days.
@@ -405,8 +485,8 @@ TestFlight builds expire after 90 days.
 1. In App Store Connect, select the processed build.
 2. Fill in **App Review Information**:
    - Contact name, phone, email.
-   - **Demo account:** username and password for an active, non-admin artist
-     account that can see the full app. The app logs in with **username**, not
+   - Provide both an active, non-admin artist demo account and an inactive
+     artist account for purchase testing. The app logs in with **username**, not
      email. Do not use an admin or telecaller account.
    - **Notes:** use the template below.
 3. Answer export compliance. The app sets
@@ -418,28 +498,34 @@ TestFlight builds expire after 90 days.
 ### Review notes template
 
 ```text
-Loki Partnerz is the iOS companion app for our lead-management service for
-makeup artists. The app lets existing customers sign in to view available
-leads, claim leads, manage their profile, and receive push notifications.
+Loki Partnerz is a lead-management app for makeup artists. Users can register
+or sign in, purchase a fixed-term plan through Apple's in-app purchase sheet,
+view and claim leads, manage their profile, and receive push notifications.
+Purchases do not auto-renew. The active demo account can access the full app.
 
-The iOS app does not offer in-app purchases and does not contain links or calls
-to action to purchase anything outside the app. Accounts are provisioned by
-Loki Partnerz for its customers. The demo account below has full access so App
-Review can use every feature.
+The Basic and Extended Basic plans are non-renewing subscriptions. Product
+identifiers: com.lwv.bridalbookermachine.basic and
+com.lwv.bridalbookermachine.extended. The app displays the localized App Store
+price and grants access for the duration shown on the plan card. Use the
+inactive test account below to review the purchase sheet.
 
-Demo account:
+Active demo account:
   Username: <demo-username>
   Password: <demo-password>
+
+Inactive purchase-test account:
+  Username: <inactive-demo-username>
+  Password: <inactive-demo-password>
 
 Account deletion: Settings > Delete Account (available to signed-in users).
 Privacy policy: https://bbm.lokiwebvibe.com/privacy.html
 Support: https://bbm.lokiwebvibe.com/support.html / contact@lokiwebvibe.com
 ```
 
-> Be honest if Apple asks how customers get accounts or how access is paid for.
-> Do not add a purchase link or a "subscribe" call to action. If Apple requires
-> in-app purchase, follow the StoreKit contingency instead of restoring the
-> external website link.
+> Be honest about how accounts are created and how payment unlocks digital
+> features. Include a working demo account and instructions for finding the
+> plans. Never direct iOS users to a website or Razorpay checkout for digital
+> access.
 
 ---
 
@@ -536,8 +622,8 @@ magick mogrify -background white -alpha remove -alpha off \
 The app's own `PrivacyInfo.xcprivacy` covers `UserDefaults`. If App Store
 Connect reports a missing declaration from a third-party SDK, update that pod.
 Firebase 12.x and Facebook SDK 18.x ship privacy manifests. If the Razorpay pod
-is flagged, update it or remove it from the iOS dependency graph in a future
-change.
+or StoreKit plugin is flagged, review the exact SDK report and update the
+dependency before resubmitting.
 
 ### Account deletion fails
 
@@ -553,12 +639,16 @@ Run `mobile_api/migrations/2026_11_05_add_ios_app_version.sql` and upload the
 updated `check_app_version.php`. The updated endpoint also returns a
 non-blocking response when the row is missing.
 
-### App Store rejection for external purchases
+### StoreKit products do not load or purchases fail
 
-If you receive a 3.1.1 / 3.1.3(b) rejection, do not re-add the website link.
-Implement StoreKit auto-renewable subscriptions and server-side transaction
-validation, as described in the audit. The existing subscription tables can store
-Apple transactions.
+- Confirm the Paid Apps agreement is active and the products are approved or
+  available to the Sandbox tester.
+- Confirm product IDs exactly match `subscription_plans.apple_product_id`.
+- Confirm the product type is **Non-Renewing Subscription** and the backend
+  allows the environment being tested.
+- Verify production has not been configured to accept Sandbox transactions.
+- Check server logs for `[APPLE_IAP]` errors and make sure
+  `verify_apple_purchase.php` is uploaded.
 
 ---
 
@@ -579,12 +669,14 @@ Apple transactions.
 - [ ] iOS version row exists; `check_app_version.php` returns 200.
 - [ ] App Store URL added to the iOS version row after the record exists.
 - [ ] `support.html` and `privacy.html` are live.
-- [ ] No purchase button, website purchase link, or "subscribe" call to action
-      in the iOS app.
-- [ ] The iOS `/Subscription` route shows only the account-help page, with no
-      plans or prices.
-- [ ] Sign-up is hidden on iOS, and the registration route does not open the
-      registration form.
+- [ ] iOS plan purchase uses StoreKit only; no Razorpay checkout or external
+      purchase link is present.
+- [ ] StoreKit products exist, have the correct type/IDs/prices, and match the
+      backend plan durations.
+- [ ] Registration, sign-in, inactive-account navigation, and plan purchase
+      work on iOS.
+- [ ] Account access can be restored by signing into the same Loki Partnerz
+      account, and expired transactions do not grant a new term.
 - [ ] Demo account is active and can access the full app.
 - [ ] Screenshots show real app screens (not login/splash).
 - [ ] App Privacy answers completed.
