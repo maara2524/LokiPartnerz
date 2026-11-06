@@ -143,9 +143,6 @@ Future<void> _checkInitialMessage() async {
         .getInitialMessage();
 
     if (initialMessage != null) {
-      debugPrint(
-        'Debug : App launched via terminated notification: ${initialMessage.data}',
-      );
       // Optional deep-link handling
     }
   } catch (e) {
@@ -190,8 +187,6 @@ Future<void> _initializeFCM() async {
 
     try {
       String? token = await messaging.getToken();
-      debugPrint('Debug : FCM Token: $token');
-
       if (token != null) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', token);
@@ -204,7 +199,6 @@ Future<void> _initializeFCM() async {
     // Token refresh listener
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
       try {
-        debugPrint('Debug : FCM Token refreshed: $newToken');
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', newToken);
         _syncFcmTokenToServer(newToken);

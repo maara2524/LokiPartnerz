@@ -87,23 +87,6 @@ try {
     $stmt->execute([$userId]);
     $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$subscription) {
-        // Close expired rows so the rest of the API sees a consistent state.
-        $pdo->prepare("
-            UPDATE subscription_history
-            SET status = 'expired'
-            WHERE user_id = ? AND status = 'active' AND end_date <= NOW()
-        ")->execute([$userId]);
-
-        if (($user['role'] ?? '') === 'artist' && (int)$user['level'] !== 5) {
-            $pdo->prepare("
-                UPDATE users SET status = 'inactive', level = 5 WHERE id = ?
-            ")->execute([$userId]);
-            $user['status'] = 'inactive';
-            $user['level'] = 5;
-        }
-    }
-
     $level = (int)$user['level'];
     $status = (string)$user['status'];
 

@@ -69,7 +69,6 @@ try {
         FROM subscription_history
         WHERE user_id = ?
           AND status = 'active'
-          AND end_date > NOW()
         ORDER BY start_date DESC, id DESC
         LIMIT 1
     ");
@@ -77,31 +76,6 @@ try {
     $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$subscription) {
-        // Close subscriptions whose paid period has elapsed and demote the
-        // artist, so web/Android/iOS all enforce the same expiry.
-        $expiredStmt = $pdo->prepare("
-            SELECT id FROM subscription_history
-            WHERE user_id = ? AND status = 'active' AND end_date <= NOW()
-            LIMIT 1
-        ");
-        $expiredStmt->execute([$userId]);
-
-        if ($expiredStmt->fetchColumn()) {
-            $pdo->prepare("
-                UPDATE subscription_history
-                SET status = 'expired'
-                WHERE user_id = ? AND status = 'active' AND end_date <= NOW()
-            ")->execute([$userId]);
-
-            $pdo->prepare("
-                UPDATE users SET status = 'inactive', level = 5 WHERE id = ?
-            ")->execute([$userId]);
-
-            http_response_code(403);
-            echo json_encode(['error' => 'Subscription expired']);
-            exit();
-        }
-
         http_response_code(403);
         echo json_encode(['error' => 'No active subscription']);
         exit();
@@ -124,8 +98,13 @@ try {
         $maxTotalClaims = (int)$stmt->fetchColumn();
     }
 
-    if ($maxTotalClaims === 0 || $totalLeadsClaimed >= $maxTotalClaims) {
-        // Mark subscription inactive
+    if ($maxTotalClaims <= 0) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Claim limit is not configured']);
+        exit();
+    }
+
+    if ($totalLeadsClaimed >= $maxTotalClaims) {
         $pdo->prepare("
             UPDATE subscription_history
             SET status = 'expired'
@@ -291,13 +270,48 @@ try {
         exit();
     }
 
-    // Increment subscription usage
+    // Increment usage only while allowance remains, preventing concurrent
+    // claims from exceeding the plan limit.
     $stmt = $pdo->prepare("
         UPDATE subscription_history
         SET total_leads_claimed = total_leads_claimed + 1
-        WHERE id = ?
+        WHERE id = ? AND total_leads_claimed < ?
     ");
-    $stmt->execute([$subscriptionId]);
+    $stmt->execute([$subscriptionId, $maxTotalClaims]);
+
+    if ($stmt->rowCount() === 0) {
+        $pdo->rollBack();
+        $pdo->prepare("
+            UPDATE subscription_history
+            SET status = 'expired'
+            WHERE id = ? AND total_leads_claimed >= ?
+        ")->execute([$subscriptionId, $maxTotalClaims]);
+        $pdo->prepare("
+            UPDATE users
+            SET status = 'inactive', level = 5
+            WHERE id = ? AND EXISTS (
+                SELECT 1
+                FROM subscription_history
+                WHERE id = ? AND total_leads_claimed >= ?
+            )
+        ")->execute([$userId, $subscriptionId, $maxTotalClaims]);
+        http_response_code(403);
+        echo json_encode(['error' => 'Subscription limit reached']);
+        exit();
+    }
+
+    if ($totalLeadsClaimed + 1 >= $maxTotalClaims) {
+        $pdo->prepare("
+            UPDATE subscription_history
+            SET status = 'expired'
+            WHERE id = ?
+        ")->execute([$subscriptionId]);
+        $pdo->prepare("
+            UPDATE users
+            SET status = 'inactive', level = 5
+            WHERE id = ?
+        ")->execute([$userId]);
+    }
 
     $pdo->commit();
 

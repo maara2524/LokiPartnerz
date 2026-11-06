@@ -126,12 +126,8 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("auth_token");
 
-      debugPrint("Debug : TOKEN => $token");
-
       final url =
           "${ApiConfig.uiConfigEndpoint}?screen=subscription&token=$token";
-
-      debugPrint("Debug : URL => $url");
 
       final res = await http.get(Uri.parse(url));
 

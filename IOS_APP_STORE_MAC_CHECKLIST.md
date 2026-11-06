@@ -43,12 +43,17 @@ Use this when you move the project to a Mac for signing, device testing, and App
 - Upload the updated `mobile_api/check_app_version.php`, `delete_account.php`, `admin/settings.php`, and `admin/settings_update_version.php`.
 - Run `mobile_api/migrations/2026_11_05_add_ios_app_version.sql` on production.
 - Run `mobile_api/migrations/2026_11_06_add_apple_iap.sql` once, after a database backup.
-- Upload `subscriptions/get_subscription_plans.php`, `subscriptions/verify_apple_purchase.php`, `subscriptions/get_my_subscription.php`, and the updated `claim_leads.php`.
+- Run `mobile_api/migrations/2026_11_07_add_account_deletion_audit.sql` after the Apple IAP migration.
+- Configure a private `APPLE_IAP_TOMBSTONE_HMAC_KEY` (at least 32 random characters) and keep it stable for that database.
+- Upload `subscriptions/get_subscription_plans.php`, `subscriptions/verify_apple_purchase.php`, `subscriptions/get_my_subscription.php`, `subscriptions/apple_iap_helpers.php`, and the updated `claim_leads.php`.
 - Leave `APPLE_IAP_ALLOWED_ENVIRONMENT` at its default `Production` on the production server.
 - Verify `check_app_version.php?platform=ios` returns HTTP 200.
 - Verify `delete_account.php` returns 200, not 404.
 - Test transaction verification against Sandbox on a separate staging backend.
 - Verify `support.html` and `privacy.html` both return 200.
+- Verify the live privacy policy matches actual app/backend data practices and
+  the App Privacy details and privacy manifest have been reviewed against the
+  final SDK set.
 
 ## Final Build
 

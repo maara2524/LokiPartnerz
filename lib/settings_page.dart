@@ -244,7 +244,7 @@ class _SettingsPageState extends State<SettingsPage> {
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           content: const Text(
-            "This permanently deletes your account, profile, subscription records, saved device token, and lead activity linked to your account. This cannot be undone.",
+            "This permanently deletes your account, profile, subscription access, saved device token, and account-linked activity. A minimal deletion record and keyed hashes of Apple purchase identifiers may be retained to prevent reuse. This cannot be undone.",
           ),
           actions: [
             TextButton(

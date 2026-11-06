@@ -75,8 +75,6 @@ class _DashboardPageState extends State<DashboardPage>
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString("auth_token");
 
-      debugPrint("Debug : TOKEN => $token");
-
       final url =
           "${ApiConfig.uiConfigEndpoint}?screen=subscription&token=$token";
 

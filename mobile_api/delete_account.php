@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/subscriptions/apple_iap_helpers.php';
+
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -90,10 +92,11 @@ try {
     $pdo->exec("SET time_zone = '+05:30'");
 
     $stmt = $pdo->prepare(
-        'SELECT id, role
-         FROM users
-         WHERE api_token = ?
-           AND token_expires > NOW()
+        'SELECT u.id, u.role, ap.whatsapp_number
+         FROM users u
+         LEFT JOIN artist_profiles ap ON ap.user_id = u.id
+         WHERE u.api_token = ?
+           AND u.token_expires > NOW()
          LIMIT 1'
     );
     $stmt->execute([$token]);
@@ -108,10 +111,93 @@ try {
     }
 
     $userId = (int)$user['id'];
+    $whatsappNumber = trim((string)($user['whatsapp_number'] ?? ''));
 
     $pdo->beginTransaction();
 
     try {
+        if (!table_exists($pdo, 'account_deletion_audit')
+            || !table_exists($pdo, 'account_deletion_apple_transaction_hashes')) {
+            throw new RuntimeException('Account deletion migration has not been applied');
+        }
+
+        $pdo->exec('INSERT INTO account_deletion_audit () VALUES ()');
+        $deletionAuditId = (int)$pdo->lastInsertId();
+
+        $teamIds = [];
+        if (table_exists($pdo, 'teams')) {
+            $stmt = $pdo->prepare('SELECT team_id FROM teams WHERE user_id = ?');
+            $stmt->execute([$userId]);
+            $teamIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        }
+
+        foreach ($teamIds as $teamId) {
+            run_if_table_exists(
+                $pdo,
+                'artist_assignment_history',
+                'DELETE FROM artist_assignment_history WHERE changed_by = ?',
+                [$teamId]
+            );
+            run_if_table_exists(
+                $pdo,
+                'call_log',
+                'DELETE FROM call_log WHERE logged_by = ?',
+                [$teamId]
+            );
+            run_if_table_exists(
+                $pdo,
+                'follow_up_reminders',
+                'DELETE FROM follow_up_reminders WHERE created_by = ? OR completed_by = ?',
+                [$teamId, $teamId]
+            );
+            run_if_table_exists(
+                $pdo,
+                'lead_assignment_history',
+                'DELETE FROM lead_assignment_history
+                 WHERE assigned_by = ?
+                    OR assigned_from_team_id = ?
+                    OR assigned_to_team_id = ?',
+                [$teamId, $teamId, $teamId]
+            );
+            run_if_table_exists(
+                $pdo,
+                'team_lead_notes',
+                'DELETE FROM team_lead_notes WHERE team_member_id = ?',
+                [$teamId]
+            );
+            run_if_table_exists(
+                $pdo,
+                'team_lead_tracking',
+                'UPDATE team_lead_tracking
+                 SET team_member_id = NULL,
+                     last_updated_by = NULL
+                 WHERE team_member_id = ? OR last_updated_by = ?',
+                [$teamId, $teamId]
+            );
+        }
+
+        if (table_exists($pdo, 'subscription_transactions')) {
+            $stmt = $pdo->prepare(
+                "SELECT apple_transaction_id
+                 FROM subscription_transactions
+                 WHERE user_id = ?
+                   AND provider = 'apple'
+                   AND apple_transaction_id IS NOT NULL"
+            );
+            $stmt->execute([$userId]);
+            $insertHash = $pdo->prepare(
+                'INSERT INTO account_deletion_apple_transaction_hashes
+                    (transaction_hash, deletion_audit_id)
+                 VALUES (?, ?)'
+            );
+            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $transactionId) {
+                $insertHash->execute([
+                    apple_transaction_tombstone_hash((string)$transactionId),
+                    $deletionAuditId,
+                ]);
+            }
+        }
+
         run_if_table_exists(
             $pdo,
             'leads',
@@ -128,7 +214,7 @@ try {
         run_if_table_exists(
             $pdo,
             'lead_activity',
-            'UPDATE lead_activity SET performed_by = NULL WHERE performed_by = ?',
+            'DELETE FROM lead_activity WHERE performed_by = ?',
             [$userId]
         );
 
@@ -142,9 +228,34 @@ try {
         run_if_table_exists(
             $pdo,
             'team_lead_tracking',
-            'UPDATE team_lead_tracking SET last_updated_by = NULL WHERE last_updated_by = ?',
+            'UPDATE team_lead_tracking
+             SET created_by = NULL,
+                 last_updated_by = NULL
+             WHERE created_by = ? OR last_updated_by = ?',
+            [$userId, $userId]
+        );
+
+        run_if_table_exists(
+            $pdo,
+            'loki_eventz_check_ins',
+            'DELETE FROM loki_eventz_check_ins WHERE user_id = ?',
             [$userId]
         );
+
+        if ($whatsappNumber !== '') {
+            run_if_table_exists(
+                $pdo,
+                'password_resets',
+                'DELETE FROM password_resets WHERE mobile = ?',
+                [$whatsappNumber]
+            );
+            run_if_table_exists(
+                $pdo,
+                'otp_requests',
+                'DELETE FROM otp_requests WHERE phone = ?',
+                [$whatsappNumber]
+            );
+        }
 
         foreach ([
             'lead_notes' => 'user_id',
@@ -181,7 +292,7 @@ try {
             $pdo->rollBack();
         }
 
-        error_log('Account deletion failed for user ' . $userId . ': ' . $e->getMessage());
+        error_log('Account deletion failed: ' . $e->getMessage());
         respond(['success' => false, 'message' => 'Unable to delete account. Please contact support.'], 500);
     }
 } catch (Throwable $e) {

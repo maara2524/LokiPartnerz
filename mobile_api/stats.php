@@ -63,14 +63,17 @@ try {
     $userId = (int)$user['id'];
     $userLevel = (int)$user['level'];
 
-    // Optional active subscription stats.
-    // Keep claimed lead history available even when there is no active plan.
+    // Prefer the current entitlement, but retain the last plan's usage after
+    // expiry so the dashboard does not make an artist's history disappear.
     $stmt = $pdo->prepare("
-        SELECT id, plan_id, plan_name, start_date, total_leads_claimed, max_claim_limit
-        FROM subscription_history
-        WHERE user_id = ?
-          AND status = 'active'
-        ORDER BY start_date DESC, id DESC
+        SELECT sh.id, sh.plan_id, sh.plan_name, sh.start_date,
+               sh.end_date, sh.status, sh.total_leads_claimed,
+               sh.max_claim_limit, sp.artist_level,
+               (sh.status = 'active' AND sh.end_date > NOW()) AS has_active_subscription
+        FROM subscription_history sh
+        LEFT JOIN subscription_plans sp ON sp.id = sh.plan_id
+        WHERE sh.user_id = ?
+        ORDER BY has_active_subscription DESC, sh.start_date DESC, sh.id DESC
         LIMIT 1
     ");
     $stmt->execute([$userId]);
@@ -79,8 +82,10 @@ try {
     $totalAllowedClaims = 0;
     $claimed = 0;
     $balance = 0;
+    $hasActiveSubscription = false;
 
     if ($subscription) {
+        $hasActiveSubscription = (bool)$subscription['has_active_subscription'];
         $totalAllowedClaims = (int)($subscription['max_claim_limit'] ?? 0);
         if ($totalAllowedClaims <= 0) {
             $stmt = $pdo->prepare("
@@ -90,7 +95,8 @@ try {
                   AND user_level = ?
                 LIMIT 1
             ");
-            $stmt->execute([$userLevel]);
+            $planLevel = (int)($subscription['artist_level'] ?? 0);
+            $stmt->execute([$planLevel > 0 ? $planLevel : $userLevel]);
             $totalAllowedClaims = (int)($stmt->fetchColumn() ?: 0);
         }
 
@@ -186,6 +192,7 @@ try {
         'total_allowed'    => $totalAllowedClaims,
         'claimed'          => $claimed,
         'balance'          => $balance,
+        'has_active_subscription' => $hasActiveSubscription,
         'booked_claims'    => $bookedClaims,
         'total_claims'     => $total_claims,
         'new_claims'       => $new_claims,

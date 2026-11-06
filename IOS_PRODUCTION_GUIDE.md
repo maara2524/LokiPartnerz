@@ -244,12 +244,25 @@ mobile_api/admin/settings_update_version.php
 mobile_api/subscriptions/get_subscription_plans.php
 mobile_api/subscriptions/verify_apple_purchase.php
 mobile_api/subscriptions/get_my_subscription.php
+mobile_api/subscriptions/apple_iap_helpers.php
 mobile_api/claim_leads.php
 ```
 
 `delete_account.php` currently returns **404** in production, so the in-app
 Delete Account button will fail until it is uploaded. App Store Guideline
 5.1.1(v) requires in-app account deletion, so this is a hard blocker.
+Before deploying the deletion endpoint, run
+`mobile_api/migrations/2026_11_07_add_account_deletion_audit.sql` after the
+Apple IAP migration. It creates a deletion audit containing no account identity
+and stores only keyed HMACs of consumed Apple transaction IDs to prevent
+purchase replay. Configure `APPLE_IAP_TOMBSTONE_HMAC_KEY` as a private server
+environment variable with at least 32 random characters; keep it identical
+across deployments and do not commit it. Do not rotate this key without a
+planned migration that preserves validation of existing tombstones. It also
+makes the team-tracking creator nullable so account deletion can remove that
+association. Deploy the helper file
+`mobile_api/subscriptions/apple_iap_helpers.php` with both the deletion and
+purchase-verification endpoints.
 
 ### 5.2 Add the iOS version row
 
@@ -324,10 +337,14 @@ curl -X POST "https://bbm.lokiwebvibe.com/mobile_api/delete_account.php" \
 ```
 
 Expected: `{"success":true,"message":"Account deleted successfully"}`.
+Verify that the user/profile/entitlements and linked activity are removed, the
+deletion audit has no account identifier, and hashed Apple transaction records
+prevent a deleted account's purchase from being applied to another account.
 
 ### 5.5 Upload the support page
 
-Upload `support.html` to the web root so this URL works:
+Upload the updated `support.html` to the web root and verify this URL returns
+HTTP 200 before submission:
 
 ```text
 https://bbm.lokiwebvibe.com/support.html
@@ -339,8 +356,10 @@ Verify:
 curl -I "https://bbm.lokiwebvibe.com/support.html"
 ```
 
-App Store Connect requires a Support URL and a Privacy Policy URL. The privacy
-policy is already live at `https://bbm.lokiwebvibe.com/privacy.html`.
+App Store Connect requires a Support URL and a Privacy Policy URL. During the
+5 November 2026 readiness check, the Support URL returned HTTP 404 and the live
+Privacy Policy still had its older text. Deploy the updated `support.html` and
+`privacy.html`, then verify both live pages show current, accurate information.
 
 ---
 
@@ -669,6 +688,9 @@ non-blocking response when the row is missing.
 - [ ] iOS version row exists; `check_app_version.php` returns 200.
 - [ ] App Store URL added to the iOS version row after the record exists.
 - [ ] `support.html` and `privacy.html` are live.
+- [ ] Live privacy disclosures match actual Firebase, Meta, WhatsApp, email,
+      Apple, Razorpay, and backend data handling; App Store Connect privacy answers and
+      the app privacy manifest have been checked against the final SDK build.
 - [ ] iOS plan purchase uses StoreKit only; no Razorpay checkout or external
       purchase link is present.
 - [ ] StoreKit products exist, have the correct type/IDs/prices, and match the

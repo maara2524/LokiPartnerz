@@ -97,7 +97,7 @@ class _AdminUserDetailSheetState extends State<AdminUserDetailSheet> {
       title: isActive ? 'Deactivate User?' : 'Activate User?',
       message: isActive
           ? 'This will revoke lead access and downgrade to level 5.'
-          : 'This will activate the user and restore level 3 access.',
+          : 'This will activate the user only if they have an active subscription.',
       confirmLabel: isActive ? 'Deactivate' : 'Activate',
       isDestructive: isActive,
     );
