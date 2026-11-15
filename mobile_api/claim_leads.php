@@ -62,14 +62,17 @@ try {
     $userId    = (int)$user['id'];
     $userLevel = (int)$user['level'];
 
-    // Fetch active subscription. max_claim_limit is a per-artist override;
-    // system_settings remains the fallback/default plan limit.
+    // Keep the claim allowance in sync with stats: use max_claim_limit when
+    // set, otherwise fall back to the default for this subscription's plan.
     $stmt = $pdo->prepare("
-        SELECT id, total_leads_claimed, end_date, max_claim_limit
-        FROM subscription_history
-        WHERE user_id = ?
-          AND status = 'active'
-        ORDER BY start_date DESC, id DESC
+        SELECT sh.id, sh.total_leads_claimed, sh.end_date,
+               sh.max_claim_limit, sp.artist_level
+        FROM subscription_history sh
+        LEFT JOIN subscription_plans sp ON sp.id = sh.plan_id
+        WHERE sh.user_id = ?
+          AND sh.status IN ('active', 'expired')
+        ORDER BY (sh.status = 'active' AND sh.end_date > NOW()) DESC,
+                 sh.start_date DESC, sh.id DESC
         LIMIT 1
     ");
     $stmt->execute([$userId]);
@@ -86,7 +89,7 @@ try {
 
     $maxTotalClaims = (int)($subscription['max_claim_limit'] ?? 0);
     if ($maxTotalClaims <= 0) {
-        // Fetch default total max claims for this level.
+        // Match stats: use the plan's artist level for the default allowance.
         $stmt = $pdo->prepare("
             SELECT setting_value
             FROM system_settings
@@ -94,7 +97,8 @@ try {
               AND user_level = ?
             LIMIT 1
         ");
-        $stmt->execute([$userLevel]);
+        $planLevel = (int)($subscription['artist_level'] ?? 0);
+        $stmt->execute([$planLevel > 0 ? $planLevel : $userLevel]);
         $maxTotalClaims = (int)$stmt->fetchColumn();
     }
 

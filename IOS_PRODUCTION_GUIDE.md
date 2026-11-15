@@ -51,14 +51,54 @@ You need:
 
 ### If you are on Windows and only have remote Mac access
 
-You do not need to own a Mac to publish, but the Xcode archive/signing step must
-run on macOS. Push the branch to your private GitHub repository, then clone it
-onto the remote Mac, or use VS Code Remote SSH if your Mac administrator has
-enabled it. Open the repository on the Mac and use the macOS Terminal/Xcode
-there. The iOS Simulator is suitable for UI and StoreKit sandbox testing; ask a
-friend or tester with an iPhone to confirm real push notifications before
-release. Do not send Apple account passwords, signing keys, or APNs keys in chat
-or commit them to the repository.
+You do not need to own a Mac to publish, but CocoaPods, Xcode signing, archiving,
+and uploading the iOS build must run on macOS. TeamViewer only gives you remote
+screen and keyboard access; it does not install Xcode or make an iOS build on
+Windows.
+
+#### First remote-Mac session (TeamViewer)
+
+1. Arrange a Mac that you are authorized to use. Confirm with its owner that it
+   has enough free disk space, a reliable internet connection, and permission
+   for you to install/use Xcode, Flutter, and CocoaPods. A dedicated Mac is
+   preferable to a public or shared machine because signing credentials are
+   stored in the macOS login keychain.
+2. Install TeamViewer on your Windows PC from TeamViewer's official site. Have
+   the Mac owner install/open TeamViewer on the Mac and share the connection ID
+   and a temporary session password with you through a private channel. Connect
+   and confirm that you can use the Mac's desktop, keyboard, and clipboard.
+   TeamViewer menu labels vary by version.
+3. Keep the session private. Do not let the Mac owner or an unknown operator
+   sign into your Apple Account for you. You should personally enter your Apple
+   Account password and two-factor authentication code when needed. Never send
+   passwords, verification codes, distribution certificates, `.p8` APNs keys,
+   or private signing keys through TeamViewer chat, email, or this repository.
+4. On the Mac, open a browser and sign in to the Apple Developer website and
+   App Store Connect using your own account. Verify that the paid membership
+   and the required App Store Connect role are active. Complete agreements,
+   tax, and banking yourself.
+5. In macOS, open **Applications → Utilities → Terminal**. Use the commands in
+   Phase 1 to clone the private repository and prepare Flutter/CocoaPods. If
+   you prefer Finder, open the repository folder after cloning and double-click
+   `ios/Runner.xcworkspace` to start Xcode. Do not open `Runner.xcodeproj`.
+6. When you finish, confirm the build has uploaded and that no source changes
+   are stranded only on the remote Mac. Sign out of Apple Developer/App Store
+   Connect and Git in the browser, disconnect TeamViewer, and follow the Mac
+   owner's instructions for removing your working copy and any downloaded
+   credentials. Do not remove certificates or keychain items that belong to
+   the owner.
+
+Before switching machines, commit and push the exact source changes you intend
+to build to a **private** Git branch, or transfer them securely. A Git push does
+not include uncommitted or untracked files. On the Mac, clone that branch and
+check `git status` before building so you can tell which files are part of the
+release. Do not copy Windows `build/` or `.dart_tool/` outputs; run `flutter pub
+get` on the Mac instead.
+
+The iOS Simulator is suitable for UI and StoreKit sandbox testing; ask a friend
+or tester with an iPhone to confirm real push notifications before release.
+App Store Connect metadata can be prepared from Windows in a browser, but the
+signed iOS archive and upload need the Mac/Xcode toolchain.
 
 ---
 
