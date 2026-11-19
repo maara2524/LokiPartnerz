@@ -26,43 +26,7 @@ if (!$user) {
 
 $level = null;
 if ($user['role'] === 'artist') {
-    $level = 5;
-
-    if ($status === 'active') {
-        $subscriptionStmt = $pdo->prepare("
-            SELECT COALESCE(NULLIF(sp.artist_level, 0), u.level) AS artist_level,
-                   sh.total_leads_claimed,
-                   COALESCE(
-                       NULLIF(sh.max_claim_limit, 0),
-                       CAST(ss.setting_value AS UNSIGNED),
-                       0
-                   ) AS max_claim_limit
-            FROM users u
-            INNER JOIN subscription_history sh
-                ON sh.user_id = u.id
-               AND sh.status = 'active'
-               AND sh.end_date > NOW()
-            LEFT JOIN subscription_plans sp ON sp.id = sh.plan_id
-            LEFT JOIN system_settings ss
-                ON ss.setting_key = 'max_total_claims'
-               AND ss.user_level = COALESCE(NULLIF(sp.artist_level, 0), u.level)
-            WHERE u.id = ?
-            ORDER BY sh.start_date DESC, sh.id DESC
-            LIMIT 1
-        ");
-        $subscriptionStmt->execute([$userId]);
-        $subscription = $subscriptionStmt->fetch();
-
-        if (!$subscription
-            || (int)$subscription['max_claim_limit'] <= (int)$subscription['total_leads_claimed']) {
-            admin_error('Grant an active subscription before activating this artist');
-        }
-
-        $level = (int)$subscription['artist_level'];
-        if ($level <= 0 || $level === 5) {
-            admin_error('The active subscription has an invalid artist level');
-        }
-    }
+    $level = $status === 'active' ? 3 : 5;
 }
 
 $pdo->beginTransaction();

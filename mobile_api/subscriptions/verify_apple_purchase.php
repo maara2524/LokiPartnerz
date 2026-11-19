@@ -16,8 +16,6 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-require_once __DIR__ . '/apple_iap_helpers.php';
-
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
@@ -371,23 +369,6 @@ try {
     if ($environment !== APPLE_IAP_ALLOWED_ENVIRONMENT) {
         http_response_code(403);
         echo json_encode(['success' => false, 'error_code' => 'INVALID_ENVIRONMENT', 'message' => 'Transaction environment is not enabled']);
-        exit();
-    }
-
-    $stmt = $pdo->prepare("
-        SELECT 1
-        FROM account_deletion_apple_transaction_hashes
-        WHERE transaction_hash = ?
-        LIMIT 1
-    ");
-    $stmt->execute([apple_transaction_tombstone_hash($transactionId)]);
-    if ($stmt->fetchColumn()) {
-        http_response_code(409);
-        echo json_encode([
-            'success' => false,
-            'error_code' => 'TRANSACTION_ALREADY_USED',
-            'message' => 'This purchase has already been used',
-        ]);
         exit();
     }
 
