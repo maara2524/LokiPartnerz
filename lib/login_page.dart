@@ -27,6 +27,13 @@ class _LoginPageState extends State<LoginPage> {
   String errorMessage = "";
   bool _obscurePassword = true;
 
+  Widget _centeredFaIcon(FaIcon icon, double size) {
+    return SizedBox.square(
+      dimension: size,
+      child: Center(child: icon),
+    );
+  }
+
   void _showError(String message) {
     if (!mounted) return;
     setState(() {
@@ -227,10 +234,13 @@ class _LoginPageState extends State<LoginPage> {
                       CircleAvatar(
                         radius: 40,
                         backgroundColor: Colors.blue.shade100,
-                        child: const Icon(
-                          FontAwesomeIcons.userShield,
-                          size: 40,
-                          color: Colors.blue,
+                        child: _centeredFaIcon(
+                          const FaIcon(
+                            FontAwesomeIcons.userShield,
+                            size: 40,
+                            color: Colors.blue,
+                          ),
+                          40,
                         ),
                       ),
                       const SizedBox(height: 15),
@@ -258,7 +268,10 @@ class _LoginPageState extends State<LoginPage> {
                       TextField(
                         controller: emailController,
                         decoration: InputDecoration(
-                          prefixIcon: const Icon(FontAwesomeIcons.user),
+                          prefixIcon: _centeredFaIcon(
+                            const FaIcon(FontAwesomeIcons.user, size: 24),
+                            24,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -272,7 +285,10 @@ class _LoginPageState extends State<LoginPage> {
                         controller: passwordController,
                         obscureText: _obscurePassword,
                         decoration: InputDecoration(
-                          prefixIcon: const Icon(FontAwesomeIcons.lock),
+                          prefixIcon: _centeredFaIcon(
+                            const FaIcon(FontAwesomeIcons.lock, size: 24),
+                            24,
+                          ),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscurePassword

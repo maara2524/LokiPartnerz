@@ -40,6 +40,8 @@ class _DashboardPageState extends State<DashboardPage>
 
   List<Map<String, dynamic>> recentLeads = [];
   List<Map<String, dynamic>> totalLeadsData = [];
+  List<Map<String, dynamic>> subscriptionPeriods = [];
+  int? selectedSubscriptionId;
   bool isLoading = true;
   bool _hasInternet = true;
   late StreamSubscription<ConnectivityResult> _connectivitySubscription;
@@ -196,7 +198,16 @@ class _DashboardPageState extends State<DashboardPage>
         return;
       }
 
-      var url = Uri.parse("${ApiConfig.claimStatsEndpoint}?token=$token");
+      final queryParameters = <String, String>{
+        "token": token,
+        "period": "subscription",
+      };
+      if (selectedSubscriptionId != null) {
+        queryParameters["subscription_id"] = selectedSubscriptionId.toString();
+      }
+      final url = Uri.parse(
+        ApiConfig.claimStatsEndpoint,
+      ).replace(queryParameters: queryParameters);
       var response = await http.get(url);
       debugPrint("Debug : Dashboard API Response: ${response.statusCode}");
 
@@ -205,6 +216,12 @@ class _DashboardPageState extends State<DashboardPage>
 
         if (data["success"] == true) {
           _safeSetState(() {
+            subscriptionPeriods = List<Map<String, dynamic>>.from(
+              data["subscription_periods"] ?? [],
+            );
+            selectedSubscriptionId = int.tryParse(
+              data["selected_subscription_id"]?.toString() ?? "",
+            );
             totalLeads = data["total_allowed"] ?? 0;
             newLeads = data["claimed"] ?? 0;
             contactedLeads = data["balance"] ?? 0;
@@ -330,6 +347,13 @@ class _DashboardPageState extends State<DashboardPage>
     }
   }
 
+  String _periodDateLabel(Object? value) {
+    final date = value?.toString() ?? "";
+    final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(date);
+    if (match == null) return date;
+    return '${match[3]}-${match[2]}-${match[1]}';
+  }
+
   @override
   Widget build(BuildContext context) {
     // ---------- NO INTERNET ----------
@@ -446,6 +470,43 @@ class _DashboardPageState extends State<DashboardPage>
                     ),
 
                   // ---------- STATS ----------
+                  if (subscriptionPeriods.isNotEmpty) ...[
+                    DropdownButtonFormField<int>(
+                      initialValue: selectedSubscriptionId,
+                      decoration: const InputDecoration(
+                        labelText: "Subscription period",
+                        border: OutlineInputBorder(),
+                      ),
+                      items: subscriptionPeriods.map((period) {
+                        final startDate = _periodDateLabel(
+                          period["start_date"],
+                        );
+                        final endDate = _periodDateLabel(period["end_date"]);
+                        final planName =
+                            period["plan_name"]?.toString() ?? "Subscription";
+                        return DropdownMenuItem<int>(
+                          value: period["id"] as int,
+                          child: Text(
+                            "$planName ($startDate to $endDate)",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (subscriptionId) {
+                        if (subscriptionId == null ||
+                            subscriptionId == selectedSubscriptionId) {
+                          return;
+                        }
+                        _safeSetState(() {
+                          selectedSubscriptionId = subscriptionId;
+                          isLoading = true;
+                        });
+                        _fetchClaimedLeads();
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

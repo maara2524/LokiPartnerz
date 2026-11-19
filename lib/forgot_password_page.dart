@@ -168,7 +168,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         CircleAvatar(
                           radius: 35,
                           backgroundColor: Colors.blue.shade100,
-                          child: const Icon(
+                          child: const FaIcon(
                             FontAwesomeIcons.lock,
                             size: 28,
                             color: Colors.blue,
@@ -202,7 +202,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(
+                            const FaIcon(
                               FontAwesomeIcons.whatsapp,
                               color: Colors.green,
                               size: 18,

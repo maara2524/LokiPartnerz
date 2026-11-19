@@ -85,10 +85,13 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  InputDecoration _inputDecoration(String label, IconData icon) {
+  InputDecoration _inputDecoration(String label, Widget icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: Colors.pinkAccent),
+      prefixIcon: IconTheme(
+        data: const IconThemeData(color: Colors.pinkAccent),
+        child: icon,
+      ),
       filled: true,
       fillColor: Colors.white,
 
@@ -330,7 +333,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         controller: _whatsappController,
                         decoration: _inputDecoration(
                           "WhatsApp Number",
-                          FontAwesomeIcons.whatsapp,
+                          const FaIcon(FontAwesomeIcons.whatsapp),
                         ).copyWith(errorText: whatsappError),
                         keyboardType: TextInputType.phone,
                       ),
@@ -341,7 +344,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         controller: _businessController,
                         decoration: _inputDecoration(
                           "Business Name",
-                          Icons.store,
+                          const Icon(Icons.store),
                         ).copyWith(errorText: businessError),
                         validator: (value) =>
                             value!.isEmpty ? "Enter business name" : null,
@@ -353,7 +356,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         controller: _contactController,
                         decoration: _inputDecoration(
                           "Person Name",
-                          Icons.person_pin,
+                          const Icon(Icons.person_pin),
                         ).copyWith(errorText: contactError),
                         validator: (value) =>
                             value!.isEmpty ? "Enter contact person" : null,
@@ -366,13 +369,13 @@ class _RegisterPageState extends State<RegisterPage> {
                         decoration:
                             _inputDecoration(
                               "Instagram Profile Link",
-                              FontAwesomeIcons.instagram,
+                              const FaIcon(FontAwesomeIcons.instagram),
                             ).copyWith(
                               errorText: instagramError,
                               errorMaxLines: 3,
                               hintText: "https://www.instagram.com/yourname",
                               suffixIcon: IconButton(
-                                icon: const Icon(
+                                icon: const FaIcon(
                                   FontAwesomeIcons.arrowUpRightFromSquare,
                                   color: Colors.pinkAccent,
                                   size: 18,
@@ -411,7 +414,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         initialValue: _selectedCategory,
                         decoration: _inputDecoration(
                           "Service Category",
-                          Icons.category,
+                          const Icon(Icons.category),
                         ),
                         items: serviceCategories
                             .map(
@@ -434,7 +437,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         controller: _couponController,
                         decoration: _inputDecoration(
                           "Coupon Code (optional)",
-                          Icons.local_offer,
+                          const Icon(Icons.local_offer),
                         ),
                       ),
                       if (errorMessage.isNotEmpty) ...[

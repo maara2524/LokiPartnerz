@@ -18,6 +18,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit();
 }
 
+$periodMode = ($_GET['period'] ?? '') === 'subscription';
+$requestedSubscriptionId = null;
+if ($periodMode && isset($_GET['subscription_id'])) {
+    $requestedSubscriptionId = filter_var($_GET['subscription_id'], FILTER_VALIDATE_INT);
+    if ($requestedSubscriptionId === false || $requestedSubscriptionId <= 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid subscription period']);
+        exit();
+    }
+}
+
 $token = $_GET['token'] ?? '';
 if (empty($token)) {
     http_response_code(401);
@@ -39,6 +50,10 @@ try {
         DB_PASS,
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
     );
+
+    if ($periodMode) {
+        $pdo->exec("SET time_zone = '+05:30'");
+    }
 
     // Fetch max_claims_per_day from system_settings (for future stats logic)
     $stmt = $pdo->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'max_claims_per_day' LIMIT 1");
@@ -63,9 +78,50 @@ try {
     $userId = (int)$user['id'];
     $userLevel = (int)$user['level'];
 
+    $subscriptionPeriods = [];
+    $selectedSubscriptionId = null;
+    if ($periodMode) {
+        $stmt = $pdo->prepare("
+            SELECT sh.id, sh.plan_id, sh.plan_name, sh.start_date,
+                   sh.end_date, sh.status, sh.total_leads_claimed,
+                   sh.max_claim_limit, sp.artist_level,
+                   (sh.status = 'active' AND sh.end_date > NOW()) AS has_active_subscription
+            FROM subscription_history sh
+            LEFT JOIN subscription_plans sp ON sp.id = sh.plan_id
+            WHERE sh.user_id = ?
+            ORDER BY has_active_subscription DESC, sh.start_date DESC, sh.id DESC
+        ");
+        $stmt->execute([$userId]);
+        $subscriptionPeriods = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if ($requestedSubscriptionId !== null) {
+            foreach ($subscriptionPeriods as $period) {
+                if ((int)$period['id'] === $requestedSubscriptionId) {
+                    $selectedSubscriptionId = $requestedSubscriptionId;
+                    break;
+                }
+            }
+
+            if ($selectedSubscriptionId === null) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Subscription period not found']);
+                exit();
+            }
+        } elseif ($subscriptionPeriods) {
+            $selectedSubscriptionId = (int)$subscriptionPeriods[0]['id'];
+        }
+
+        foreach ($subscriptionPeriods as &$period) {
+            $period['id'] = (int)$period['id'];
+            $period['total_leads_claimed'] = (int)$period['total_leads_claimed'];
+            $period['max_claim_limit'] = (int)$period['max_claim_limit'];
+        }
+        unset($period);
+    }
+
     // Prefer the current entitlement, but retain the last plan's usage after
     // expiry so the dashboard does not make an artist's history disappear.
-    $stmt = $pdo->prepare("
+    $subscriptionSql = "
         SELECT sh.id, sh.plan_id, sh.plan_name, sh.start_date,
                sh.end_date, sh.status, sh.total_leads_claimed,
                sh.max_claim_limit, sp.artist_level,
@@ -73,10 +129,18 @@ try {
         FROM subscription_history sh
         LEFT JOIN subscription_plans sp ON sp.id = sh.plan_id
         WHERE sh.user_id = ?
+    ";
+    $subscriptionParams = [$userId];
+    if ($periodMode && $selectedSubscriptionId !== null) {
+        $subscriptionSql .= " AND sh.id = ?";
+        $subscriptionParams[] = $selectedSubscriptionId;
+    }
+    $subscriptionSql .= "
         ORDER BY has_active_subscription DESC, sh.start_date DESC, sh.id DESC
         LIMIT 1
-    ");
-    $stmt->execute([$userId]);
+    ";
+    $stmt = $pdo->prepare($subscriptionSql);
+    $stmt->execute($subscriptionParams);
     $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
 
     $totalAllowedClaims = 0;
@@ -104,8 +168,8 @@ try {
         $balance = max(0, $totalAllowedClaims - $claimed);
     }
 
-    // Fetch the latest status per lead for this user across all time.
-    // Subscription usage/balance above still stays scoped to the active plan.
+    // Keep the dashboard's lead list all-time; only its stat counts use the
+    // selected subscription window.
     $stmt = $pdo->prepare("
         SELECT lsh.lead_id,
                lsh.new_status,
@@ -128,48 +192,94 @@ try {
         ORDER BY lsh.changed_at DESC, lsh.id DESC
     ");
     $stmt->execute([$userId, $userId]);
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $allTimeRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Format claimed leads
-    $formattedAllLeads = [];
-    foreach ($rows as $lead) {
-        // Determine released status
-        $isReleased = 0; // default: not released
-
-        if ((int)$lead['claimed_by'] !== $userId) {
-            $isReleased = 1;
-        } elseif ((int)$lead['is_locked'] === 0) {
-            $isReleased = 1;
-        } elseif ($lead['claim_expiry'] !== null && strtotime($lead['claim_expiry']) < time()) {
-            $isReleased = 1;
-        }
-
-        $myStatus = normalize_artist_status($lead['new_status'] ?: 'new');
-        $displayStatus = get_artist_display_status($pdo, (int)$lead['lead_id'], $userId, $myStatus);
-
-        $formattedAllLeads[] = [
-            'id'            => (int)$lead['lead_id'],
-            'customer_name' => $lead['customer_name'] ?: 'Unknown',
-            'name'          => $lead['customer_name'] ?: 'Unknown',
-            'event_date'    => $lead['event_date'] ?: '',
-            'date'          => $lead['event_date'] ? date('Y-m-d', strtotime($lead['event_date'])) : '',
-            'status'        => $displayStatus,
-            'my_status'     => $myStatus,
-            'display_status' => $displayStatus,
-            'display_status_label' => artist_status_label($displayStatus),
-            'last_updated'  => $lead['changed_at'],
-            'released'      => $isReleased
-        ];
+    $periodRows = null;
+    if ($periodMode && $subscription) {
+        $stmt = $pdo->prepare("
+            SELECT lsh.lead_id,
+                   lsh.new_status,
+                   lsh.changed_at,
+                   l.customer_name,
+                   l.event_date,
+                   l.claim_expiry,
+                   l.is_locked,
+                   l.claimed_by
+            FROM lead_status_history lsh
+            INNER JOIN (
+                SELECT period_status.lead_id, MAX(period_status.id) AS latest_id
+                FROM lead_status_history period_status
+                INNER JOIN claimed_leads_log cl
+                  ON cl.lead_id = period_status.lead_id
+                 AND cl.user_id = ?
+                 AND cl.claim_time >= ?
+                 AND cl.claim_time < ?
+                WHERE period_status.changed_by = ?
+                  AND period_status.changed_at >= ?
+                  AND period_status.changed_at < ?
+                GROUP BY period_status.lead_id
+            ) latest
+              ON latest.latest_id = lsh.id
+             AND lsh.changed_by = ?
+            INNER JOIN leads l ON l.id = lsh.lead_id
+            ORDER BY lsh.changed_at DESC, lsh.id DESC
+        ");
+        $stmt->execute([
+            $userId,
+            $subscription['start_date'],
+            $subscription['end_date'],
+            $userId,
+            $subscription['start_date'],
+            $subscription['end_date'],
+            $userId,
+        ]);
+        $periodRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // Count stats (use formattedAllLeads to stay consistent with my_claims)
-    $total_claims     = count($formattedAllLeads);
+    $formatLeads = static function (array $rows) use ($pdo, $userId): array {
+        $formattedLeads = [];
+        foreach ($rows as $lead) {
+            $isReleased = 0;
+            if ((int)$lead['claimed_by'] !== $userId) {
+                $isReleased = 1;
+            } elseif ((int)$lead['is_locked'] === 0) {
+                $isReleased = 1;
+            } elseif ($lead['claim_expiry'] !== null && strtotime($lead['claim_expiry']) < time()) {
+                $isReleased = 1;
+            }
+
+            $myStatus = normalize_artist_status($lead['new_status'] ?: 'new');
+            $displayStatus = get_artist_display_status($pdo, (int)$lead['lead_id'], $userId, $myStatus);
+
+            $formattedLeads[] = [
+                'id' => (int)$lead['lead_id'],
+                'customer_name' => $lead['customer_name'] ?: 'Unknown',
+                'name' => $lead['customer_name'] ?: 'Unknown',
+                'event_date' => $lead['event_date'] ?: '',
+                'date' => $lead['event_date'] ? date('Y-m-d', strtotime($lead['event_date'])) : '',
+                'status' => $displayStatus,
+                'my_status' => $myStatus,
+                'display_status' => $displayStatus,
+                'display_status_label' => artist_status_label($displayStatus),
+                'last_updated' => $lead['changed_at'],
+                'released' => $isReleased,
+            ];
+        }
+        return $formattedLeads;
+    };
+
+    $formattedAllLeads = $formatLeads($allTimeRows);
+    $statsRows = $periodRows ?? $allTimeRows;
+
+    // Count statuses from the selected rows.
+    $total_claims     = count($statsRows);
     $new_claims       = 0;
     $contacted_claims = 0;
     $booked_claims    = 0;
 
-    foreach ($formattedAllLeads as $lead) {
-        switch (strtolower($lead['my_status'])) {
+    foreach ($statsRows as $lead) {
+        $myStatus = normalize_artist_status($lead['new_status'] ?: 'new');
+        switch (strtolower($myStatus)) {
             case 'new':
                 $new_claims++;
                 break;
@@ -187,7 +297,7 @@ try {
     // Recent = last 10 claimed/updated leads
     $recentLeads = array_slice($formattedAllLeads, 0, 10);
 
-    echo json_encode([
+    $response = [
         'success'          => true,
         'total_allowed'    => $totalAllowedClaims,
         'claimed'          => $claimed,
@@ -199,7 +309,20 @@ try {
         'contacted_claims' => $contacted_claims,
         'recent_leads'     => $recentLeads,
         'claimed_leads'    => $formattedAllLeads
-    ]);
+    ];
+    if ($periodMode) {
+        $response['subscription_periods'] = array_map(static function ($period) {
+            return [
+                'id' => $period['id'],
+                'plan_name' => $period['plan_name'],
+                'start_date' => $period['start_date'],
+                'end_date' => $period['end_date'],
+                'status' => $period['status'],
+            ];
+        }, $subscriptionPeriods);
+        $response['selected_subscription_id'] = $selectedSubscriptionId;
+    }
+    echo json_encode($response);
 
 } catch (Exception $e) {
     http_response_code(500);
