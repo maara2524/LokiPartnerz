@@ -507,34 +507,55 @@ class _DashboardPageState extends State<DashboardPage>
                     ),
                     const SizedBox(height: 16),
                   ],
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildStatCard(
-                        Icons.list,
-                        "Total",
-                        totalLeads.toString(),
-                        Colors.blue,
-                      ),
-                      _buildStatCard(
-                        Icons.star,
-                        "Claimed",
-                        newLeads.toString(),
-                        Colors.purple,
-                      ),
-                      _buildStatCard(
-                        Icons.account_balance_wallet,
-                        "Balance",
-                        contactedLeads.toString(),
-                        Colors.orange,
-                      ),
-                      _buildStatCard(
-                        Icons.check_circle,
-                        "Booked",
-                        bookedLeads.toString(),
-                        Colors.green,
-                      ),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cards = [
+                        _buildStatCard(
+                          Icons.list,
+                          "Total",
+                          totalLeads.toString(),
+                          Colors.blue,
+                        ),
+                        _buildStatCard(
+                          Icons.star,
+                          "Claimed",
+                          newLeads.toString(),
+                          Colors.purple,
+                        ),
+                        _buildStatCard(
+                          Icons.account_balance_wallet,
+                          "Balance",
+                          contactedLeads.toString(),
+                          Colors.orange,
+                        ),
+                        _buildStatCard(
+                          Icons.check_circle,
+                          "Booked",
+                          bookedLeads.toString(),
+                          Colors.green,
+                        ),
+                      ];
+
+                      if (constraints.maxWidth < 400) {
+                        return Wrap(
+                          runSpacing: 8,
+                          children: cards
+                              .map(
+                                (card) => SizedBox(
+                                  width: constraints.maxWidth / 2,
+                                  child: card,
+                                ),
+                              )
+                              .toList(),
+                        );
+                      }
+
+                      return Row(
+                        children: cards
+                            .map((card) => Expanded(child: card))
+                            .toList(),
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -606,34 +627,26 @@ class _DashboardPageState extends State<DashboardPage>
     String count,
     Color color,
   ) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 5,
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 6),
-            Text(
-              count,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 6),
+          Text(
+            count,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        ],
       ),
     );
   }

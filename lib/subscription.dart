@@ -1641,11 +1641,7 @@ class _Level5SubscriptionPageState extends State<Level5SubscriptionPage>
                         onTap: _restoreAppleAccount,
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        "Apple purchases are fixed-term and do not renew automatically. Access is connected to your Loki Partnerz account; choose a plan again when it expires.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: Colors.black54),
-                      ),
+                      
                       if (_storeKitError != null) ...[
                         const SizedBox(height: 8),
                         Text(

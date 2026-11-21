@@ -46,7 +46,7 @@ if ($token === '') {
 }
 
 try {
-    require __DIR__ . '/../app/config/database.php';
+    require __DIR__ . '/../../app/config/database.php';
 
     $pdo = new PDO(
         'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4',

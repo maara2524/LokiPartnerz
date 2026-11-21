@@ -100,8 +100,6 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // Check internet connection
-      await NetworkUtils.checkConnectivity();
       var url = Uri.parse(ApiConfig.loginEndpoint);
       var response = await http.post(
         url,
