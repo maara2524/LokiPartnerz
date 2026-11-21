@@ -1,85 +1,184 @@
-# BBM App: Full Project Context for AI Systems
+# Loki Partnerz (formerly BBM) - Full AI Project Context
 
-## 1. Project Identity
+## 1. Project Overview
 
-- Project name: `bbm_app`
-- Product name used in UI/docs: `BBM`, `BBM Artist App`, `Bridal Booker Machine`
-- App type: Flutter mobile app backed by a PHP + MySQL API
-- Primary domain: lead distribution and conversion for wedding/event service providers
-- Primary backend host configured in the app: `https://bbm.lokiwebvibe.com`
+- Repository: `maara2524/LokiPartnerz`
+- Flutter package: `bbm_app`
+- Current public app/display name: `Loki Partnerz`
+- Previous/public legacy names: `BBM`, `BBM Artist App`, and `Bridal Booker Machine`
+- iOS display name: `Loki Partnerz`
+- Android `app_name`: `Loki Partnerz`
+- Android application ID: `com.lwv.bridalbookermachine`
+- iOS bundle display/name: Loki Partnerz / LokiPartnerz
+- Current pubspec version: `3.2.16+44`
+- Dart SDK constraint: `^3.8.1`
+- Platforms: Android, iOS, and limited/web scaffolding
+- Primary API: `https://bbm.lokiwebvibe.com`
+- API override: `--dart-define=API_BASE_URL=<base-url>`
+- Backend: procedural PHP endpoints plus MySQL/PDO
+- Backend directory: `mobile_api/`
+- Database config: `app/config/database.php`
+- Main database timezone: `Asia/Kolkata` / MySQL `+05:30`
 
-This project is not a generic CRM. It is a monetized lead marketplace and operations app centered on bridal/event vendors, especially makeup artists, with an additional telecaller workflow for internal lead handling.
+Loki Partnerz is the current display name of the subscription-based lead marketplace previously known as BBM/BBM Artist App/Bridal Booker Machine. The rebrand changed the user-facing app name only. Existing package names, application IDs, bundle identifiers, API domains, backend paths, database identifiers, payment/deep-link identifiers, and signed app installations must not be renamed casually.
 
-## 2. Product Goal
+The app lets artists pay for plans that allow them to claim leads in their service category. Telecallers use the same application for internal lead follow-up and artist assignment. Admin users manage users, leads, plans, app settings, UI content, telecallers, and platform operations.
 
-The app exists to convert inbound customer leads into paid business opportunities for service providers.
+This is not a generic CRM or consumer booking app. The core commercial loop is:
 
-In practice, it does four things:
+1. Leads enter the system from external sources, including Meta/Facebook campaigns.
+2. Leads are delayed, filtered, and made visible according to category and system rules.
+3. Artists purchase or receive a plan.
+4. Artists claim leads and update them through a status and follow-up workflow.
+5. Telecallers and admins monitor and intervene in the lead workflow.
+6. Daily and lifetime claim limits, expiry, locking, and auto-release control lead access.
 
-1. Onboards artists/vendors into the BBM ecosystem.
-2. Sells subscriptions that unlock access to leads.
-3. Lets subscribed artists discover, claim, and work leads relevant to their category.
-4. Gives telecallers an internal workflow to contact leads, track status, and assign elite artists.
+## 1.1 Branding and Identifier Rules
 
-The lead funnel appears to be:
+The rename is a display-brand rebrand, not a technical rename. AI agents and developers must distinguish public branding from legacy/internal identifiers:
 
-1. Leads are generated externally, often from Meta/Facebook campaigns.
-2. Leads enter the BBM database.
-3. Telecallers and/or artists work those leads depending on role and business flow.
-4. Artists convert leads into contacted/booked outcomes.
-5. The app tracks usage so subscriptions can expire after total claim limits are reached.
+### Use for user-facing branding
 
-## 3. Main User Types
+- `Loki Partnerz`
+- Android launcher label: `Loki Partnerz`
+- iOS `CFBundleDisplayName`: `Loki Partnerz`
+- iOS `FacebookDisplayName`: `Loki Partnerz`
 
-### Artist
+Do not describe the current app as a newly named package or imply that package/application IDs changed.
 
-This is the main mobile user.
+### Keep unchanged for compatibility
 
-- Registers from the app.
-- Starts as `inactive` and `level = 5`.
-- Must purchase a subscription to become active.
-- Can view only category-matched leads.
-- Can claim leads, view claimed leads, update statuses, add notes, and watch training resources.
-- Can edit profile/business details.
+- Flutter package: `bbm_app`
+- Android application ID: `com.lwv.bridalbookermachine`
+- Android namespace: `com.lwv.bridalbookermachine`
+- Android signing asset names may remain `bbm-key.jks` and `bbm_android`
+- Android deep-link scheme: `bbm://payment-callback`
+- API host: `bbm.lokiwebvibe.com`
+- Backend/database/UI terminology: `BBM`, `bbm_app`, `bbm_api`, and `mobile_api`
+- Existing database tables, columns, routes, app route names, analytics labels, and files
+- iOS bundle/product identifiers unless a separate Apple product and identifier migration is explicitly approved
 
-Typical categories seen in code/data:
+Renaming these technical values may break existing installations, payment callbacks, Firebase configuration, deep links, Play/App Store identity, or backend integrations. BBM names are therefore legacy identifiers and Loki Partnerz is the current brand name.
 
-- `Makeup`
-- `Photography`
-- `Events (Dance, Catering etc.)`
-- `Others`
+## 2. User Roles
 
-### Telecaller
+### 2.1 Artist
 
-This is an internal operational role.
+The normal consumer of paid leads.
 
-- Uses the same app shell, but sees a different set of tabs/pages.
-- Can view available leads in a telecaller mode.
-- Has dashboard/report pages.
-- Can access telecaller-specific lead details and status tracking.
-- Can assign an artist from the elite artist pool.
+- Registers with business/profile details.
+- Begins inactive at level `5`.
+- Receives a 10-digit WhatsApp number as the initial login username/password.
+- Purchases or receives a subscription.
+- Sees leads matched to the profile category.
+- Can claim leads, view claim history, search/filter claims, update status, add notes, release leads, and open lead details.
+- Can edit profile and business information.
+- Can use Wistia tutorial resources.
+- Can logout or, on iOS, delete the account.
 
-Telecaller workflow is separate from artist claim workflow. Telecaller activity is tracked through `team_lead_tracking`, `lead_activity`, and `status_master`.
+### 2.2 Telecaller
 
-### Admin / Backoffice
+A role for internal sales/follow-up operations.
 
-There is evidence of admin/backoffice behavior in the database and API, but not a full mobile admin UI.
+- Uses the normal login flow but receives a separate shell.
+- Views an operational dashboard.
+- Views available leads and leads assigned or interacted with by the telecaller.
+- Updates telecaller call/status information.
+- Adds notes and follow-up activity.
+- Views reports and today-versus-total metrics.
+- Assigns eligible elite artists to leads.
 
-- Admin users exist in the `users` table.
-- Admin/backoffice likely manages:
-  - plans
-  - system settings
-  - UI config
-  - incoming leads
-  - subscription/payment oversight
-  - tutorial resources
-  - telecaller operations
+The app identifies the role from `SharedPreferences["role"] == "telecaller"`.
 
-## 4. Role and Access Model
+### 2.3 Admin
 
-### Auth storage
+An authenticated mobile backoffice shell.
 
-The mobile app stores session state locally in `SharedPreferences`, including:
+- Views dashboard totals, lead distribution, category distribution, and activity.
+- Creates, edits, activates, and deletes users.
+- Grants plans to users and changes claim limits.
+- Creates/removes telecaller users.
+- Lists, searches, inspects, edits, unlocks, deletes, and releases leads.
+- Reviews claim history and lead status timeline.
+- Views and updates subscription plans.
+- Updates Android/iOS/Web version settings and forced-update content.
+- Toggles lead locking, auto-release, FCM, Meta events, intro videos, and maintenance mode.
+- Updates database-backed UI configuration keys.
+- Releases every locked lead.
+
+The app identifies admin sessions from `SharedPreferences["role"] == "admin"` and validates them through the bearer-protected admin API.
+
+## 3. Authentication and Sessions
+
+### 3.1 Login
+
+`POST mobile_api/auth.php`
+
+- Accepts username and password as JSON or form data.
+- Password is verified with PHP `password_verify`.
+- A 32-byte random API token is generated with `bin2hex(random_bytes(32))`, stored in `users.api_token`.
+- Token expiry is set to 30 days.
+- Login stores:
+  - `auth_token`
+  - `user_id`
+  - `level`
+  - `username`
+  - `role`
+  - `status`
+  - `business_name`
+- The login routes based on role/status/level:
+  - admin -> admin shell
+  - telecaller -> main shell
+  - inactive or level 5 artist -> subscription page
+  - active eligible artist -> artist shell
+
+### 3.2 Registration
+
+`POST mobile_api/register.php`
+
+Registration collects:
+
+- business name
+- contact person
+- WhatsApp number
+- Instagram URL
+- service category
+- optional coupon code
+
+Validation includes:
+
+- exactly 10 digits for WhatsApp
+- non-empty business/contact fields
+- Instagram URL format when supplied
+- service category
+- unique username/WhatsApp
+
+The initial password is the WhatsApp number. On success, the account is created with:
+
+- role `artist`
+- status `inactive`
+- level `5`
+- an API token
+- an `artist_profiles` record
+
+A registration-success dialog displays the username and password. A Facebook `CompleteRegistration` app event is logged after registration.
+
+### 3.3 Password Recovery
+
+There are dedicated pages and PHP endpoints for:
+
+- `forgot_password_page.dart`
+- `otp_verification_page.dart`
+- `reset_password_page.dart`
+- `mobile_api/password_recovery/send_otp.php`
+- `mobile_api/password_recovery/verify_otp.php`
+- `mobile_api/password_recovery/reset_password.php`
+
+The recovery flow sends an OTP, verifies it, and sets a new password. OTP delivery/implementation details are backend concerns and should be verified against the live endpoint.
+
+### 3.4 Session Storage
+
+The app uses `SharedPreferences` for local session and cached data:
 
 - `auth_token`
 - `user_id`
@@ -88,249 +187,740 @@ The mobile app stores session state locally in `SharedPreferences`, including:
 - `role`
 - `status`
 - `business_name`
-- cached profile data
 - `fcm_token`
+- `artist_profile`
+- lead disclaimer daily/permanent opt-out keys
 
-### Token model
+`prefs.clear()` is used on logout and account/session termination. The app does not maintain a private, encrypted Flutter credential store; all persistent auth state is in SharedPreferences.
 
-- Login issues a server-generated API token.
-- The token is stored in `users.api_token`.
-- Tokens expire after 30 days via `users.token_expires`.
-- Most API requests authenticate using that token.
+## 4. Navigation and App Shells
 
-### Effective permissions
+### 4.1 Splash and startup
 
-The system uses a combination of:
+`lib/splash_page.dart`
 
-- `role`
-- `status`
-- `level`
-- subscription history
-- artist profile category
+Startup performs:
 
-to decide what a user can do.
+1. Package-name/version lookup.
+2. Server forced-update check.
+3. Platform-specific update check.
+4. Android Play Core flexible/immediate update handling.
+5. Three-second splash delay.
+6. Local session check.
+7. Server-side role/status validation.
+8. Route to admin, telecaller, artist subscription, artist shell, or login.
 
-### Important role/status rules
+The server version check fails open: if it cannot run or the API is unavailable, the app continues.
 
-- No token: send user to login.
-- `status = inactive`: send artist to subscription/paywall flow.
-- `level = 5`: treated as unsubscribed/inactive in the app flow.
-- `role = telecaller`: app uses telecaller dashboard, leads, report, and assignment flows.
-- non-telecaller artist users: app uses artist dashboard, available leads, claims, resources, settings.
+### 4.2 Named routes
 
-## 5. Subscription and Level Model
+`lib/main.dart` defines:
 
-This app is strongly subscription-driven.
+- `/` - splash
+- `/dashboard` - dashboard
+- `/settings` - settings
+- `/leads` - lead launcher
+- `/available_leads` - available leads
+- `/my_claims` - artist claims
+- `/lead_detail` - lead detail
+- `/login` - login
+- `/register` - registration
+- `/Subscription` - subscription
+- `/assign_artist` - elite artist assignment
+- `/admin` - admin shell
 
-### Key idea
+### 4.3 Artist tabs
 
-Artists do not get lead access by default. Registration creates an inactive account, and subscription purchase activates the account and upgrades the artist level.
+`MainShell` uses a `PageView` and bottom navigation:
 
-### Known levels
+1. Home - artist dashboard
+2. Leads - available leads
+3. My Claims - claimed leads
+4. Resources - tutorial videos
+5. Settings - profile/account
 
-The system uses numeric levels, and the current code behavior strongly suggests:
+Tab counts are returned by child pages and shown in app-bar titles.
 
-- `5` = unsubscribed / inactive / blocked from claiming
-- `4` = trial plan
-- `3` = basic plan
-- `2` = extended/basic higher plan
-- `1` = admin or highest internal privilege
+### 4.4 Telecaller tabs
 
-This interpretation comes from `system_settings`, `subscription_history`, and payment activation code.
+1. Home - telecaller dashboard
+2. Leads - available telecaller leads
+3. My Leads - telecaller interacted/assigned leads
+4. Report - telecaller report
+5. Settings
 
-### Subscription effects
+### 4.5 Admin tabs
 
-Successful subscription payment does all of the following:
+1. Dashboard
+2. Users
+3. Leads
+4. Plans
+5. Settings
 
-- marks old subscriptions expired
-- inserts a new active row in `subscription_history`
+## 5. Subscription System
+
+### 5.1 Plan model
+
+Subscriptions use `subscription_plans` and `subscription_history`.
+
+A plan normally has:
+
+- ID
+- slug
+- name
+- integer price
+- currency
+- description
+- artist level
+- duration
+- Apple product ID
+- active state
+
+Known plan slugs in the app:
+
+- `trial`
+- `basic`
+- `extended_basic`
+- `elite`
+
+Higher/lower plan meaning is numeric and should not be reversed without backend verification:
+
+- level `5`: inactive/unsubscribed
+- level `4`: trial
+- level `3`: basic
+- level `2`: extended/basic higher tier
+- level `1`: elite/internal
+
+Some of these levels are also used as operational system-setting keys. The backend is the authority for exact values and current plan behavior.
+
+### 5.2 Subscription page
+
+`lib/subscription.dart`
+
+- Loads subscription plans.
+- Loads UI copy from `app_ui_config`.
+- Loads a free Wistia intro video.
+- Supports Android Razorpay checkout.
+- Supports iOS StoreKit/In-App Purchase checkout.
+- Supports a website fallback link.
+- Shows notification permission status and can open OS notification settings.
+- Logs payment funnel events to Facebook App Events.
+- Prevents duplicate/reentrant payment calls with loading and timeout guards.
+
+### 5.3 Android/Razorpay flow
+
+1. Create Razorpay order through `subscriptions/create_order.php`.
+2. Open Razorpay checkout with order, amount, currency, and customer details.
+3. Receive payment ID/signature/order ID callbacks.
+4. Send confirmation to `subscriptions/confirm_razorpay_payment.php`.
+5. Verify the server-side Razorpay signature.
+6. Activate the user and artist level.
+7. Navigate to the app shell.
+
+The backend also supports a webhook at `subscriptions/razorpay_webhook.php`.
+
+### 5.4 iOS/App Store flow
+
+The app initializes `InAppPurchase` StoreKit:
+
+- Loads available Apple product IDs from plan records.
+- Requests purchase restoration.
+- Completes purchased transactions.
+- Sends purchase verification to `subscriptions/verify_apple_purchase.php`.
+- Receives verification and account activation status.
+- Prevents account use until the backend confirms the purchase.
+
+Apple product IDs must match App Store Connect and `subscription_plans.apple_product_id`.
+
+### 5.5 Legacy/alternate payments
+
+The repository contains PhonePe-style endpoints:
+
+- `mobile_api/create_order.php`
+- `mobile_api/check_order_status.php`
+- `mobile_api/payment_callback.php`
+- `mobile_api/config/phonepe_config.php`
+
+Treat Razorpay and Apple IAP as current active mobile paths unless live backend evidence says otherwise.
+
+### 5.6 Subscription activation
+
+Successful activation:
+
+- expires old/duplicate active subscriptions
+- inserts or updates `subscription_history`
 - updates `artist_profiles.artist_level`
-- updates `users.status = active`
-- updates `users.level` to the plan’s mapped `artist_level`
+- sets `users.status = active`
+- sets `users.level` to the plan's artist level
 
-### Claim limits are plan-driven
+If claim use reaches or exceeds the subscription limit:
 
-`system_settings` controls plan behavior by `user_level`, including:
+- the subscription is marked expired
+- the user is marked inactive
+- user level is reset to `5`
+- the next app flow routes back to subscription
 
-- `max_claims_per_day`
-- `max_total_claims`
-- `can_claim_leads`
-- `claim_lock_duration_hours`
-- `lead_visibility_delay_hours`
-- `auto_release_inactive_hours`
+## 6. Lead Marketplace
 
-Examples found in the dump:
+### 6.1 Lead data
 
-- level 3 basic plan: total claims `50`
-- level 4 trial plan: total claims `12`
-- level 5 unsubscribed: claim limits `0`
+The `leads` table/entity contains customer and event information:
 
-### Payment systems
+- source
+- customer name
+- WhatsApp number
+- event date
+- event type
+- services required
+- location
+- budget range
+- additional information
+- status
+- claimed by
+- claim time
+- claim expiry
+- claim count
+- lock state
+- notified state
+- maximum allowed claims
+- timestamps
 
-There are two payment paths in the repo:
+Artist category matching uses the artist profile category against lead event/service fields.
 
-- Razorpay: actively wired into Flutter subscription flow
-- older PhonePe-style endpoints: still present in backend
+### 6.2 Available-lead rules
 
-The current mobile app appears to rely mainly on Razorpay.
+`all_leads.php` validates:
 
-## 6. End-to-End User Journeys
+- API token
+- token expiry
+- user role
+- artist category for non-telecaller users
 
-### Artist onboarding journey
+It automatically resets expired claims and opens expired lead rows.
 
-1. User opens app.
-2. Splash checks forced app update and optional Play Store update.
-3. If not logged in, user goes to login/register.
-4. Registration creates:
-   - `users` row with `role = artist`, `status = inactive`, `level = 5`
-   - `artist_profiles` row with category/business details
-5. User is redirected to subscription page.
-6. User selects a plan and pays.
-7. Backend activates the account and sets plan level.
-8. User enters artist shell and can work leads.
+It may filter by:
 
-### Artist lead workflow
+- lead visibility delay
+- event date at least two days away
+- lead category/service match
+- lead not locked by another user
+- lead not already fully claimed
+- lead not previously claimed by this artist
+- lead state not booked/closed
+- telecaller lead start date
+- telecaller team-tracking state
 
-1. App fetches available leads using the artist token.
-2. Backend filters leads by artist category.
-3. Artist claims a lead.
-4. Claim lock / daily limits / total limits are enforced.
-5. Artist sees the lead in `My Claims`.
-6. Artist updates lead status and adds notes.
-7. Dashboard aggregates claim stats and recent lead activity.
+UI behavior includes:
 
-### Telecaller workflow
+- one-time daily disclaimer
+- permanent disclaimer opt-out
+- refresh/internet retry states
+- session-expired state
+- subscription-ended state
+- claim confirmation
+- category/event/price/detail cards
+- contact action and lead detail navigation
 
-1. Telecaller logs in with `role = telecaller`.
-2. App switches to telecaller shell automatically.
-3. Telecaller sees dashboard + available leads + interacted leads + report.
-4. Telecaller updates statuses through team tracking.
-5. Telecaller can assign an elite artist to a lead.
-6. Activity is tracked in telecaller-specific tables and status mappings.
+### 6.3 Claiming
 
-## 7. Frontend Structure
+`POST mobile_api/claim_leads.php`
 
-The Flutter app is mostly a single-feature mobile client with page-based architecture rather than a deep layered architecture.
+The claim endpoint enforces:
 
-### Key app entry files
+- active token
+- active account
+- active subscription
+- daily claim limit
+- total plan claim limit
+- lead existence
+- lead not booked/closed
+- lead not claimed by another active artist
+- lead not already fully claimed
+- event date eligibility
+- previously claimed lead restrictions
 
-- `lib/main.dart`
-- `lib/splash_page.dart`
-- `lib/main_shell.dart`
+A successful claim:
 
-### Main artist pages
+1. Locks the lead.
+2. Sets `claimed_by`.
+3. Sets claim expiry.
+4. Increments `claim_count`.
+5. Inserts `claimed_leads_log`.
+6. Adds lead status history.
+7. Increments `subscription_history.total_leads_claimed`.
 
-- `dashboard_page.dart`
-- `available_leads_page.dart`
-- `my_claims_page.dart`
-- `new_lead_details.dart`
-- `resources_page.dart`
-- `settings_page.dart`
-- `subscription.dart`
+Database transactions and `SELECT ... FOR UPDATE` are used to reduce race conditions.
 
-### Main telecaller pages
+### 6.4 My Claims
 
-- `telecaller_dashboard_page.dart`
-- `telecaller_leads_page.dart`
-- `telecaller_report_page.dart`
-- `assign_artist_page.dart`
+`lib/my_claims_page.dart`
 
-### Support/auth pages
+- Loads subscription-period aggregated stats.
+- Shows claimed leads for the artist.
+- Supports text search.
+- Filters by status.
+- Filters by event date.
+- Supports refresh and connectivity handling.
+- Opens lead details.
+- Shows session-expired/network/empty states.
 
-- `login_page.dart`
-- `register_page.dart`
-- `forgot_password_page.dart`
-- `otp_verification_page.dart`
-- `reset_password_page.dart`
-- `update_req_screen.dart`
+### 6.5 Lead Details
 
-### Configuration/support files
+`lib/new_lead_details.dart`
 
-- `lib/config/api_config.dart`
-- `lib/utils/network_utils.dart`
-- `lib/meta_events.dart`
-- `lib/theme/bbm_theme.dart`
+The details page:
 
-## 8. Navigation Model
+- loads normalized event type and requirements;
+- shows customer and event information;
+- exposes WhatsApp call/chat actions;
+- shows status and follow-up controls;
+- adds notes;
+- lists status history;
+- releases a claimed lead when allowed;
+- handles booked/closed/expired states.
 
-The app uses a simple route table plus `MainShell`.
+Lead status updates:
 
-### Artist shell tabs
+- are ownership checked;
+- update lead status;
+- record status history;
+- may clear/reapply locks according to rules.
 
-1. Home
-2. Available Leads
-3. My Claims
-4. Resources
-5. Settings
+Status labels used by the artist UI include:
 
-### Telecaller shell tabs
+- New
+- Contacted
+- Follow Up
+- Closed
+- Booked
+- Booked inside app
+- Booked outside app
 
-1. Home
-2. Leads
-3. My Leads
-4. Report
-5. Settings
+### 6.6 Lead Notes
 
-Role detection is local and based on the stored `role` value in shared preferences.
+`lead_notes_page.dart` and `add_new_note.php` provide:
 
-## 9. UI / Theme / Brand Character
+- note entry
+- note history display
+- formatted status labels
+- per-claimed-lead context
 
-The product is function-first, not design-system heavy.
+### 6.7 Lead release
 
-### Visual traits seen in code
+`release.php` clears active claim ownership/expiry/lock fields according to authorization and claim state. The admin shell can also release all locked leads.
 
-- gradients, especially purple-blue on splash/login
-- some pink branding on registration
-- Material 3 base
-- white card-heavy forms and dashboard surfaces
-- Google Fonts used in parts of auth flow
+## 7. Artist Dashboard
 
-### Brand/domain language
+`lib/dashboard_page.dart`
 
-- bridal / wedding / booking
-- artists
-- vendors
-- leads
-- claims
+The dashboard:
+
+- loads business name and username.
+- loads database-backed UI config.
+- queries subscription-period claim stats.
+- can switch subscription period or selected subscription.
+- shows total, new, contacted, and booked lead counts.
+- shows recent claimed leads.
+- shows total lead data and subscription periods.
+- checks notification permission.
+- opens notification settings.
+- listens for app resume and route-pop refresh events.
+- listens for internet reconnection.
+- distinguishes network, session-expired, and unknown errors.
+
+Dashboard cards navigate to Available Leads or My Claims through `MainShell.switchToTab`.
+
+## 8. Telecaller Workflow
+
+### 8.1 Telecaller dashboard
+
+`telecaller_dashboard_page.dart`
+
+Shows:
+
+- leads contacted
+- total calls
+- notes added
+- interested leads
+- today totals for calls, notes, and interested leads
+
+It handles session expiration, network failures, and retry.
+
+### 8.2 Telecaller leads
+
+`telecaller_leads_page.dart` and `available_leads_page.dart`
+
+The telecaller lead page:
+
+- loads available lead inventory.
+- loads leads assigned or followed by the telecaller.
+- exposes lead details and status controls.
+- sends WhatsApp/call actions.
+- adds follow-up activity.
+
+### 8.3 Telecaller reports
+
+`telecaller_report_page.dart`
+
+- loads telecaller reporting data.
+- presents call/status totals and activity breakdown.
+- supports refreshed report data.
+
+### 8.4 Elite artist assignment
+
+`assign_artist_page.dart`, `elite_artists.php`, and `assign_artist.php`
+
+- loads elite artist candidates.
+- assigns an artist to a lead.
+- updates telecaller tracking/assignment state.
+- records the assignment in lead activity.
+
+### 8.5 Telecaller database model
+
+The telecaller side uses:
+
+- `team_lead_tracking`
+- `lead_activity`
+- `status_master`
+- `elite_clients`
+
+The latest status is commonly represented by `team_lead_tracking.current_status_id`, while activity and call history are stored in lead activity tables.
+
+## 9. Resources and Training
+
+### 9.1 Resources page
+
+`lib/resources_page.dart`
+
+- loads paid or gated tutorial videos.
+- uses Wistia WebViews.
+- applies the access flag returned by the backend.
+- displays locked, unavailable, and network states.
+
+### 9.2 Subscription intro video
+
+`subscription-intro-video.php`
+
+- returns the first/free Wistia intro video.
+- is used in the subscription page.
+
+### 9.3 Wistia player
+
+`wistia_player_page.dart`
+
+- opens a Wistia iframe.
+- enables JavaScript.
+- has loaded/error states.
+
+## 10. Profile and Settings
+
+`lib/settings_page.dart`
+
+### Profile
+
+Loads the local profile cache first, then refreshes from `get_profile.php`.
+
+Editable fields include:
+
+- username
+- business name
+- WhatsApp number
+- Instagram handle
+- Facebook page
+- website
+- location
+- profile/category-related fields exposed by the backend
+
+Validation includes:
+
+- unique username length of at least 4
+- 10-digit WhatsApp
+- valid HTTP/HTTPS URLs
+
+### Account
+
+- logout clears all shared preferences and returns to login
+- iOS account deletion is explicitly supported
+- Android account deletion is not exposed
+- notification settings can be opened
+- privacy/support links can be opened
+
+Android and iOS receive platform-specific subscription/account behavior.
+
+## 11. Notifications
+
+### 11.1 Firebase
+
+Dependencies:
+
+- `firebase_core`
+- `firebase_messaging`
+- `flutter_local_notifications`
+
+Startup:
+
+- initializes Firebase
+- registers a background messaging handler
+- requests alert/badge/sound permission
+- fetches and stores FCM token
+- uploads token to `save_fcm_token.php`
+- listens for token refresh
+- shows foreground Android notifications locally
+- uses iOS foreground presentation options
+
+### 11.2 Android notification channel
+
+- channel ID: `default_channel`
+- channel name: `General Notifications`
+- importance: high
+
+### 11.3 Notification permission
+
+`permission_handler` and `utils/notification_permission.dart` are used to inspect/open notification settings.
+
+### 11.4 Server notification endpoints
+
+- `save_fcm_token.php`
+- `send_fcm.php`
+- `check_new_leads.php`
+- `test_push.php`
+
+## 12. Admin System
+
+`lib/admin/`
+
+### 12.1 Admin API authentication
+
+`AdminApiService` obtains the bearer token from SharedPreferences and sends:
+
+```http
+Authorization: Bearer <auth_token>
+Content-Type: application/json
+Accept: application/json
+```
+
+`mobile_api/admin/_bootstrap.php` supplies shared admin authorization and JSON behavior.
+
+### 12.2 Dashboard
+
+`admin_dashboard_page.dart`
+
+- lead/user/subscription metrics
+- lead breakdown
+- category breakdown
+- recent activity
+- skeleton and error states
+
+### 12.3 Users
+
+`admin_users_page.dart`
+
+- list/search/filter users
+- create artist/telecaller/admin users
+- update user/profile fields
+- toggle active/inactive
+- delete users
+- grant plans
+- set per-user claim limits
+- open user detail sheet
+
+Endpoints:
+
+- `admin/users.php`
+- `admin/user_create.php`
+- `admin/user_update.php`
+- `admin/user_toggle_status.php`
+- `admin/user_delete.php`
+- `admin/user_grant_plan.php`
+- `admin/user_claim_limit_update.php`
+
+### 12.4 Leads
+
+`admin_leads_page.dart`
+
+- search by customer/details
+- filter status/category
+- inspect a lead
+- edit lead fields
+- set maximum claims
+- view claim history
+- view status timeline
+- unlock lead
+- delete lead
+- release all leads
+
+Endpoints:
+
+- `admin/leads.php`
+- `admin/lead_detail.php`
+- `admin/lead_update.php`
+- `admin/lead_unlock.php`
+- `admin/lead_delete.php`
+- `admin/leads_release_all.php`
+
+### 12.5 Plans
+
+`admin_subscriptions_page.dart`
+
+- list active subscription data
+- update plan details
+- update Apple product identifiers
+- update plan prices/descriptions/levels
+
+Endpoint:
+
+- `admin/subscriptions.php`
+- `admin/subscription_plan_update.php`
+
+### 12.6 Settings
+
+`admin_settings_page.dart`
+
+- forced update version settings for Android/iOS
+- force-update message and store URL
+- FCM toggle
+- Meta event toggle
+- lead-lock toggle
+- auto-release toggle
+- intro-video toggle
+- maintenance mode
+- UI configuration keys by screen
+- telecaller creation/removal
+- release all locked leads
+- admin sign-out
+
+Endpoints:
+
+- `admin/settings.php`
+- `admin/settings_update_version.php`
+- `admin/settings_update_toggles.php`
+- `admin/settings_update_ui_config.php`
+- `admin/telecaller_create.php`
+- `admin/telecaller_remove.php`
+
+## 13. UI Configuration System
+
+`get_ui_config.php` and `app_ui_config`
+
+The backend supplies key/value UI content for screens. The app fetches values for:
+
 - subscription
-- tutorial resources
+- available leads
+- resources
+- other configured screens
 
-The UI tone suggests a sales-enablement/business app for Indian wedding/event vendors, not a consumer booking app.
+Common keys include screen disclaimer title/body and plan benefit point lists:
 
-## 10. Backend Architecture
+- `basic_point_1`, `basic_point_2`, ...
+- `trial_point_1`, ...
+- `elite_point_1`, ...
 
-The backend is a PHP API located in `mobile_api/`.
+Dynamic UI text must not be assumed to match hardcoded defaults. Backend/UI config is an effective CMS layer.
 
-### Backend style
+## 14. Main Technologies
 
-- plain PHP endpoints
-- direct PDO access
-- no visible modern framework in this folder
-- many endpoints include `../app/config/database.php`
-- JSON request/response model
-- CORS headers added manually
+### 14.1 Flutter/Dart
 
-### Architectural characteristics
+- Dart `^3.8.1`
+- Material 3
+- Stateful widget/page architecture
+- `PageView` and bottom navigation
+- `SharedPreferences`
+- `package:http`
+- `GoogleFonts`
+- `FontAwesomeFlutter`
+- `url_launcher`
+- `connectivity_plus`
 
-- endpoint-per-use-case style
-- thin controller + inline SQL approach
-- business rules enforced directly in endpoint code
-- token auth implemented at endpoint level
-- heavy coupling to the live MySQL schema
+### 14.2 Android
 
-This is not a REST API with clean resource abstraction. It is a pragmatic mobile backend with use-case endpoints.
+- Kotlin
+- Gradle Kotlin DSL
+- compile/target SDK `36`
+- Java/Kotlin JVM target `17`
+- Core library desugaring
+- Firebase BOM
+- R8/resource shrinking setup
+- Play Core immediate/flexible updates
+- release signing loaded from `key.properties`
 
-## 11. Backend Endpoint Groups
+### 14.3 iOS
 
-### Authentication and profile
+- Swift AppDelegate/scene setup
+- CocoaPods
+- StoreKit/In-App Purchase
+- Firebase
+- Facebook SDK/App Events
+- remote notifications background mode
+
+### 14.4 Backend
+
+- procedural PHP
+- PDO
+- MySQL
+- JSON endpoints
+- CORS headers
+- server-side password verification
+- bearer/query-token authorization
+- PHP random API token sessions
+- 30-day token expiry
+
+### 14.5 External services
+
+- Firebase Core and Cloud Messaging
+- Razorpay
+- Apple StoreKit/IAP
+- Wistia
+- Facebook App Events
+- Google Play in-app updates
+- Meta lead sources
+- optional legacy payment callbacks
+
+## 15. Flutter Dependencies
+
+Declared direct dependencies:
+
+- `firebase_core`
+- `firebase_messaging`
+- `flutter_local_notifications`
+- `http`
+- `shared_preferences`
+- `google_fonts`
+- `font_awesome_flutter`
+- `connectivity_plus`
+- `url_launcher`
+- `app_links`
+- `razorpay_flutter`
+- `facebook_app_events`
+- `webview_flutter`
+- `in_app_update`
+- `package_info_plus`
+- `pdf`
+- `printing`
+- `permission_handler`
+- `in_app_purchase`
+
+Development dependencies:
+
+- `flutter_test`
+- `flutter_lints`
+- `flutter_launcher_icons`
+
+## 16. Backend Endpoint Map
+
+### Authentication/profile
 
 - `auth.php`
 - `register.php`
 - `get_profile.php`
 - `update_artist_profile.php`
-- password recovery endpoints
+- `delete_account.php`
+- `get-service-categories.php`
+- `password_recovery/send_otp.php`
+- `password_recovery/verify_otp.php`
+- `password_recovery/reset_password.php`
 
-### Leads for artists
+### Lead operations
 
 - `all_leads.php`
 - `claim_leads.php`
@@ -341,7 +931,7 @@ This is not a REST API with clean resource abstraction. It is a pragmatic mobile
 - `stats.php`
 - `get_followup_status.php`
 
-### Telecaller operations
+### Telecaller
 
 - `telecaller_dashboard.php`
 - `telecaller_my_leads.php`
@@ -349,397 +939,368 @@ This is not a REST API with clean resource abstraction. It is a pragmatic mobile
 - `assign_artist.php`
 - `elite_artists.php`
 
-### Subscription/payments
+### Subscription/payment
 
 - `subscriptions/get_subscription_plans.php`
 - `subscriptions/create_order.php`
 - `subscriptions/confirm_razorpay_payment.php`
 - `subscriptions/razorpay_webhook.php`
-- legacy payment endpoints also exist at top level
+- `subscriptions/get_my_subscription.php`
+- `subscriptions/verify_apple_purchase.php`
+- `create_order.php`
+- `check_order_status.php`
+- `payment_callback.php`
 
-### Content/config
+### Content/platform
 
 - `get_ui_config.php`
 - `tutorial_videos.php`
 - `subscription-intro-video.php`
-
-### Platform/ops
-
 - `check_app_version.php`
 - `save_fcm_token.php`
 - `send_fcm.php`
 - `check_new_leads.php`
-- `release.php`
+- `test_push.php`
+- `test.php`
 
-## 12. Core Data Model
+### Admin
 
-The most important business entities are:
+- `admin/dashboard.php`
+- `admin/users.php`
+- `admin/user_create.php`
+- `admin/user_update.php`
+- `admin/user_toggle_status.php`
+- `admin/user_delete.php`
+- `admin/user_grant_plan.php`
+- `admin/user_claim_limit_update.php`
+- `admin/leads.php`
+- `admin/lead_detail.php`
+- `admin/lead_update.php`
+- `admin/lead_unlock.php`
+- `admin/lead_delete.php`
+- `admin/leads_release_all.php`
+- `admin/subscriptions.php`
+- `admin/subscription_plan_update.php`
+- `admin/settings.php`
+- `admin/settings_update_version.php`
+- `admin/settings_update_toggles.php`
+- `admin/settings_update_ui_config.php`
+- `admin/telecaller_create.php`
+- `admin/telecaller_remove.php`
 
-### `users`
+## 17. Core Database Tables
 
-Holds identity/session basics.
+### Identity/profile
 
-Important fields:
+- `users`
+- `artist_profiles`
 
-- `id`
-- `username`
-- `password_hash`
-- `role`
-- `status`
-- `level`
-- `api_token`
-- `fcm_token`
-- `token_expires`
+### Leads/claims
 
-Important note:
+- `leads`
+- `claimed_leads_log`
+- `lead_status_history`
+- `lead_activity`
+- `lead_notes`
 
-- The SQL dump shows `role` enum values `admin`, `artist`, `lead_manager`.
-- The live code clearly expects `telecaller`.
-- This means the dump is probably older than the current production schema, or the schema was altered later.
+### Subscription
 
-### `artist_profiles`
+- `subscription_plans`
+- `subscription_history`
+- `payment_transactions`
 
-Holds artist/vendor business metadata.
+### Rules/config
 
-Important fields:
+- `system_settings`
+- `app_ui_config`
 
-- `user_id`
-- `business_name`
-- `contact_person_name`
-- `whatsapp_number`
-- `instagram_handle`
-- `facebook_page`
-- `website_url`
-- `location`
-- `artist_level`
-- `is_active`
-- `category`
-- `coupon_code`
-
-### `leads`
-
-The core monetizable unit of the system.
-
-Important fields:
-
-- `lead_source`
-- `customer_name`
-- `whatsapp_number`
-- `event_date`
-- `event_type`
-- `services_required`
-- `location`
-- `budget_range`
-- `additional_info`
-- `status`
-- `claimed_by`
-- `claim_time`
-- `claim_expiry`
-- `claim_count`
-- `is_locked`
-- `notified`
-- `max_claims_allowed`
-
-Observations:
-
-- `event_type` can be JSON-like or plain text.
-- `services_required` is used for category matching.
-- many leads appear sourced from Meta campaigns.
-
-### `subscription_history`
-
-Tracks purchased/trial subscription periods.
-
-Important fields:
-
-- `user_id`
-- `plan_id`
-- `plan_name`
-- `subscription_type`
-- `start_date`
-- `end_date`
-- `total_leads_claimed`
-- `payment_id`
-- `order_id`
-- `amount_paid`
-- `currency`
-- `status`
-
-### `system_settings`
-
-This is a very important business-rules table.
-
-It drives behavior like:
-
-- visibility delay
-- claim locks
-- daily/total claim limits
-- whether a level can claim at all
-- auto release
-
-### `app_ui_config`
-
-Acts like a mini CMS/config store for app copy/content by screen.
-
-Used for screens such as:
-
-- subscription
-- available leads
-- resources
-
-### Telecaller-related entities
-
-The telecaller side uses additional entities including:
+### Telecaller
 
 - `team_lead_tracking`
-- `lead_activity`
 - `status_master`
 - `elite_clients`
 
-These support assignment, workflow stages, activity logging, and elite artist matching.
+### Operational
 
-## 13. Lead Distribution Logic
+- notifications and FCM state on `users`
+- app version/system settings
 
-### Artist lead visibility rules
+Table names and columns must be verified against live migrations and the SQL dump when making backend changes.
 
-Artists do not see all leads. The backend filters by:
+## 18. System-Setting Rules
 
-- valid token
-- role not telecaller
-- artist profile category
-- event date not too close
-- visibility delay hours
-- lead not already fully claimed
-- lead not already claimed by the same user before
-- lead still available/unlocked
+`system_settings` is a database-driven policy layer keyed by setting and user level.
 
-### Telecaller lead visibility rules
+Important keys include:
 
-Telecallers use a different query path and are not category-filtered the same way.
+- `lead_visibility_delay_hours`
+- `claim_lock_duration_hours`
+- `auto_release_inactive_hours`
+- `max_claims_per_day`
+- `max_total_claims`
+- `can_claim_leads`
 
-### Claiming behavior
+These control:
 
-Claiming a lead enforces:
+- lead visibility delay
+- claim locks
+- expired claim release
+- per-day artist claims
+- lifetime plan claims
+- whether the user level can claim
 
-- active token
-- active user status
-- active subscription
-- total subscription claim limit
-- daily claim limit by user level
-- event date validity
-- lead not already actively claimed by same user
-- lead not already fully claimed by too many users
+There may also be admin toggle records controlling FCM, Meta events, locking, auto-release, intro video, and maintenance mode. The admin settings endpoint is authoritative for present behavior.
 
-### Subscription expiry on overuse
+## 19. Important HTTP/Session Conventions
 
-When total claims reach plan limit:
+- Public lead/subscription data can use unauthenticated GET requests.
+- Most artist and telecaller endpoints use a query parameter `token`.
+- Admin endpoints use `Authorization: Bearer <token>`.
+- Several POST endpoints accept JSON or form data.
+- JSON success is commonly represented by `success: true`.
+- Errors can use `error` or `message`.
+- HTTP `401` means invalid/expired/missing auth.
+- HTTP `403` commonly means inactive subscription, limit, or role denial.
+- HTTP `409` commonly means a lead has been claimed or is in a terminal state.
+- Session-expired UI clears/redirects local credentials.
 
-- subscription row is marked expired
-- user is downgraded to inactive
-- user level is set back to `5`
+Do not introduce one authentication convention globally without auditing every PHP endpoint.
 
-This is a critical business rule.
+## 20. Connectivity and Error Handling
 
-## 14. Status Tracking Model
+The app uses:
 
-There are effectively two status systems in this project.
+- `connectivity_plus`
+- custom `NetworkUtils`
+- per-page loading, retry, and refresh states
+- session-expired screens
+- subscription-ended screens
+- `AppErrorView`
+- HTTP status-specific fallbacks
+- JSON parsing guards
+- request timeouts on sensitive login/startup calls
 
-### Artist status flow
+The app must distinguish:
 
-Artists update statuses on claimed leads. Observed statuses include:
+- no internet
+- server unavailable
+- invalid/expired token
+- inactive subscription
+- claim limit reached
+- lead already claimed
+- lead booked/closed
+- malformed server response
 
-- `new`
-- `contacted`
-- `booked`
-- `follow_up`
-- `closed`
+## 21. Analytics and Tracking
 
-Artist notes are stored separately and returned per-user for the lead.
+### Facebook App Events
 
-### Telecaller status flow
+The app has a Facebook App Events wrapper.
 
-Telecaller statuses are more workflow-driven and use `status_master`.
+Configured iOS Facebook values are stored in `Info.plist`, and Android uses Firebase/Google services plus the app event plugin.
 
-Examples inferred from code:
+Events observed include:
 
-- `assigned`
-- `interested`
-- `callback_needed`
+- `CompleteRegistration`
+- subscription/payment funnel events
 
-Telecaller activity is logged in `lead_activity`, and the latest status is tracked through `team_lead_tracking.current_status_id`.
+Do not enable advertising or analytics outside the existing privacy/consent configuration without product review.
 
-## 15. Content and Training Model
+## 22. Update and Release Behavior
 
-The app includes gated training/tutorial content.
+### Server update gate
 
-### Resources page
+`check_app_version.php` receives:
 
-- loads tutorial videos from the backend
-- uses Wistia embeds
-- respects per-user access flags
-- hides/locks content if the user lacks access
+- current app version
+- platform
 
-### Subscription intro content
+It can force update and provide store URL/message.
 
-- separate endpoint returns a free/intro video
-- used on the subscription/paywall screen
+### Android in-app update
 
-This means the product is not only a lead marketplace; it also includes enablement/training content for vendors.
+Uses Play Core:
 
-## 16. External Integrations
-
-### Firebase
-
-- Firebase Core
-- Firebase Cloud Messaging
-- local notifications for foreground push display
-
-### Razorpay
-
-- plan purchase flow
-- order creation
-- payment verification
-- webhook support
-
-### Wistia
-
-- tutorial and intro videos via WebView/embed HTML
-
-### Meta / Facebook
-
-- Facebook App Events used in onboarding/payment funnel analytics
-- lead source data in SQL strongly suggests Meta campaigns feed the lead system
-
-### In-app updates
-
-- Android Play Store update checks
-
-### SharedPreferences
-
-- used as the main local session/cache layer
-
-## 17. Operational / Runtime Behavior
-
-### Splash responsibilities
-
-On app launch, splash handles:
-
-- forced version check via backend
-- optional Play Store update
-- auth/session check
-- status/level gate
-- initial route decision
-
-### Notification behavior
-
-- requests notification permissions
-- stores FCM token locally
-- uploads FCM token once logged in
-- handles foreground and background push flows
-
-### Connectivity behavior
-
-Several pages explicitly handle:
-
-- no internet state
-- retry UI
-- session-expired UI
-
-## 18. Important Business Assumptions an AI Should Keep in Mind
-
-1. This is a revenue-driven lead-access product, not just a CRM.
-2. Subscription state is central to app behavior.
-3. Role-based UX is significant: artist and telecaller are different products inside one shell.
-4. Category matching matters for artist lead access.
-5. `level` is not cosmetic; it drives permissions and limits.
-6. Database-driven UI config means some UI text/points are not hardcoded.
-7. Telecaller features use a separate tracking/status model from artist claims.
-
-## 19. Known Inconsistencies / Risks / Caveats
-
-These are important for any AI modifying this project.
-
-### Mixed payment history
-
-Both Razorpay and older payment endpoints exist. Avoid assuming every payment path is active.
-
-### Security concerns
-
-Observed concerns in the repo:
-
-- hardcoded Razorpay secret in backend code
-- Firebase service account JSON stored in repo
-- token auth is simple and endpoint-local
-
-Any security-sensitive refactor should be handled carefully.
-
-### Architecture style
-
-The backend is procedural and tightly coupled to schema. Changes often require coordinated updates across:
-
-- Flutter request payloads
-- endpoint logic
-- database fields
-- local shared preference assumptions
-
-## 20. Best Mental Model for Another AI
-
-If another AI needs to work on this project, it should think of BBM as:
-
-"A Flutter mobile client for a subscription-based bridal/event vendor lead marketplace, backed by a procedural PHP API and MySQL database, where artists pay to unlock category-matched leads and telecallers run an internal assignment/tracking workflow on the same lead pool."
-
-## 21. High-Confidence File Map
-
-Frontend:
-
-- `lib/main.dart`
-- `lib/splash_page.dart`
-- `lib/main_shell.dart`
-- `lib/login_page.dart`
-- `lib/register_page.dart`
-- `lib/dashboard_page.dart`
-- `lib/available_leads_page.dart`
-- `lib/my_claims_page.dart`
-- `lib/new_lead_details.dart`
-- `lib/settings_page.dart`
-- `lib/subscription.dart`
-- `lib/resources_page.dart`
-- `lib/telecaller_dashboard_page.dart`
-- `lib/telecaller_leads_page.dart`
-- `lib/telecaller_report_page.dart`
-- `lib/assign_artist_page.dart`
-- `lib/config/api_config.dart`
-
-Backend:
-
-- `mobile_api/auth.php`
-- `mobile_api/register.php`
-- `mobile_api/get_profile.php`
-- `mobile_api/all_leads.php`
-- `mobile_api/claim_leads.php`
-- `mobile_api/lead_details.php`
-- `mobile_api/update_status.php`
-- `mobile_api/telecaller_dashboard.php`
-- `mobile_api/telecaller_my_leads.php`
-- `mobile_api/assign_artist.php`
-- `mobile_api/get_ui_config.php`
-- `mobile_api/tutorial_videos.php`
-- `mobile_api/subscriptions/get_subscription_plans.php`
-- `mobile_api/subscriptions/confirm_razorpay_payment.php`
-
-Supporting project docs:
-
-- `README.md`
-- `API_README.md`
-- `BBM_INTEGRATION_GUIDE.md`
-- `u888578780_bbm.sql`
-
-## 22. Suggested Usage
-
-If this file is being fed into another AI system, it should be used as:
-
-- primary project briefing/context
-- onboarding context before code changes
-- a checklist for tracing auth, subscriptions, roles, and lead behavior
-
-It should not be treated as a perfect source of truth over runtime production data. For schema-level changes, another AI should still verify against the current backend code and any live database migrations.
+- immediate update if allowed
+- flexible update if immediate is unavailable
+- completes flexible update after download
+
+### iOS
+
+Store URL is shown by the update-required screen; Apple IAP is independent from App Store app updates.
+
+### Release configuration
+
+- Android signing properties are in `android/key.properties`
+- Android release signing may use `android/app/bbm-key.jks`
+- iOS signing is configured in Xcode/CocoaPods
+- native Firebase configuration files are present in Android/iOS folders
+
+Secrets and signing material must remain outside source control and must not be pasted into AI context.
+
+## 23. Project Structure
+
+```text
+lib/
+  main.dart
+  main_shell.dart
+  splash_page.dart
+  login_page.dart
+  register_page.dart
+  forgot_password_page.dart
+  otp_verification_page.dart
+  reset_password_page.dart
+  dashboard_page.dart
+  leads_home_page.dart
+  available_leads_page.dart
+  my_claims_page.dart
+  new_lead_details.dart
+  lead_notes_page.dart
+  assign_artist_page.dart
+  subscription.dart
+  subscription_ended_screen.dart
+  resources_page.dart
+  wistia_player_page.dart
+  settings_page.dart
+  telecaller_dashboard_page.dart
+  telecaller_leads_page.dart
+  telecaller_report_page.dart
+  update_req_screen.dart
+  meta_events.dart
+  config/api_config.dart
+  theme/
+  utils/
+  widgets/
+  admin/
+
+mobile_api/
+  auth/profile/lead endpoints
+  password_recovery/
+  subscriptions/
+  admin/
+
+android/
+ios/
+web/
+assets/
+test/
+```
+
+Current source directories can contain build artifacts and generated Gradle/Xcode files. Use source folders and manifests as authority, not build output.
+
+## 24. Build and Run
+
+### Flutter setup
+
+```powershell
+flutter pub get
+flutter analyze
+flutter test
+flutter run
+```
+
+### Android
+
+```powershell
+flutter build apk --release
+flutter build appbundle --release
+```
+
+### iOS
+
+```powershell
+flutter pub get
+cd ios
+pod install
+cd ..
+flutter build ios --release
+```
+
+### Environment override
+
+```powershell
+flutter run --dart-define=API_BASE_URL=https://your-api.example
+```
+
+The API default is production and changing the base URL affects every endpoint built by `ApiConfig`.
+
+## 25. Testing Guidance
+
+Before completing a change:
+
+1. Run targeted Flutter tests or `flutter test`.
+2. Run `flutter analyze`.
+3. Verify Android and iOS compilation where native/API behavior changed.
+4. Test login, registration, logout, and session expiry.
+5. Test subscription plan loading and payment activation.
+6. Test artist claim limits and duplicate/expired claims.
+7. Test telecaller dashboard/assignment/report.
+8. Test admin CRUD and authorization.
+9. Test no-network behavior and server malformed JSON behavior.
+10. Test notification token upload and foreground/background handling.
+
+No backend or database migration should be considered complete until Flutter payloads and PHP SQL agree.
+
+## 26. Known Risks and Caveats
+
+### Security
+
+- API tokens are stored as SharedPreferences strings.
+- PHP auth is endpoint-local and largely procedural.
+- Backend credentials and payment secrets may exist in server files/config.
+- API responses and endpoint authorization should be audited for every change.
+- Never include live secrets, private keys, service-account JSON, passwords, or signing passwords in prompts, docs, or commits.
+- Razorpay signatures, Apple receipt verification, and token expiry must be enforced server-side.
+
+### Mixed implementations
+
+- Razorpay and legacy PhonePe-style flows coexist.
+- Apple IAP and Razorpay use separate activation APIs.
+- Admin pages and legacy artist pages use slightly different response conventions.
+- The SQL dump and live PHP schema may differ.
+
+### Status terminology
+
+Artist, telecaller, and admin status names are not identical. Preserve the originating status model unless a migration is intentional.
+
+### Schema drift
+
+The app contains both older and newer SQL/PHP assumptions. Verify:
+
+- role values
+- status names
+- plan/level mappings
+- lead claim columns
+- claim history table names
+- telecaller tracking tables
+- system-setting keys
+
+### Product assumptions
+
+- level `5` is the default inactive state
+- categories drive lead matching
+- subscriptions can be exhausted by usage
+- expired leads can be automatically released
+- lead visibility delay and lock duration are configurable
+
+Do not hardcode these values in Flutter when the backend exposes a setting or subscription plan field.
+
+## 27. Change Guidelines for AI Coding Agents
+
+Before editing:
+
+1. Trace the Flutter screen -> `ApiConfig` endpoint -> PHP endpoint -> SQL table/column.
+2. Read nearby code and preserve existing response parsing fallbacks.
+3. Make coordinated Flutter/PHP/schema changes in one task.
+4. Preserve role/status/level behavior.
+5. Use existing theme, widget, and admin API patterns.
+6. Do not expose or move secrets.
+7. Add focused tests for claim, auth, subscription, role, or status changes.
+8. Validate Android and iOS when navigation, payment, permissions, or deep links change.
+9. Use the production base URL unless the task explicitly configures a different environment.
+
+## 28. Best Mental Model
+
+Loki Partnerz is a:
+
+> Flutter mobile lead marketplace and operations system for artists/vendors, previously known as BBM/BBM Artist App/Bridal Booker Machine, backed by procedural PHP/MySQL endpoints, with subscription-based lead access, category matching, claim limits, Wistia training, Razorpay and Apple IAP payments, Firebase notifications, telecaller workflows, and a mobile admin backoffice.
